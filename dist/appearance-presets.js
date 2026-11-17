@@ -1,0 +1,33 @@
+window.AppearancePresets = {
+  colors: [
+    ["Paper", "#f7f5ef"],
+    ["Oat", "#e8dfce"],
+    ["Clay", "#d7a28d"],
+    ["Vermilion", "#c63820"],
+    ["Rose", "#edc9c7"],
+    ["Butter", "#efdf9e"],
+    ["Olive", "#b9c49b"],
+    ["Sage", "#cad9cd"],
+    ["Sea", "#99c8c6"],
+    ["Sky", "#c6dbed"],
+    ["Slate", "#657b8b"],
+    ["Ink", "#20201e"],
+  ],
+  templates: [
+    { id: "paper", name: "Paper", color: "#f7f5ef", pattern: "none" },
+    { id: "graphite", name: "Graphite", color: "#303633", pattern: "dots" },
+    { id: "blueprint", name: "Blueprint", color: "#c6dbed", pattern: "grid" },
+    { id: "notebook", name: "Notebook", color: "#e8dfce", pattern: "lines" },
+    {
+      id: "terracotta",
+      name: "Terracotta",
+      color: "#d7a28d",
+      pattern: "diagonal",
+    },
+    { id: "garden", name: "Garden", color: "#cad9cd", pattern: "leaves" },
+    { id: "tide", name: "Tide", color: "#99c8c6", pattern: "waves" },
+    { id: "butter", name: "Butter", color: "#efdf9e", pattern: "crosses" },
+    { id: "contour", name: "Contour", color: "#e8dfce", pattern: "contour" },
+    { id: "woven", name: "Woven", color: "#edc9c7", pattern: "woven" },
+  ],
+};

@@ -14,11 +14,24 @@
     <div id="wallpaper-overlay" aria-hidden="true"></div>
     <aside>
       <div class="sidebar-search">
-        <input
+        <span class="search-icon" aria-hidden="true"
+          ><svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+          >
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 4 4" /></svg></span
+        ><input
           id="search"
-          placeholder="Search everything"
+          placeholder="Search tasks & notes"
           aria-label="Search tasks and notes"
-        /><span>/</span>
+          autocomplete="off"
+        /><button id="clear-search" aria-label="Clear search" hidden>
+          <span data-icon="close"></span></button
+        ><kbd>/</kbd>
+        <div id="search-status" role="status" hidden></div>
       </div>
 
       <nav>
@@ -373,6 +386,33 @@
             <p class="hint">Use a plain surface or your own image.</p>
           </div>
           <div>
+            <label
+              >Apply palette color to<select id="palette-target">
+                <option value="background">Background</option>
+                <option value="primary">Primary actions</option>
+                <option value="secondary">Secondary surfaces</option>
+              </select></label
+            >
+            <div
+              id="palette"
+              class="color-palette"
+              aria-label="12 color choices"
+            ></div>
+            <div class="form-row">
+              <label class="color-picker"
+                >Primary<input
+                  type="color"
+                  id="primary-color"
+                  value="#c63820" /></label
+              ><label class="color-picker"
+                >Secondary<input
+                  type="color"
+                  id="secondary-color"
+                  value="#e8dfce"
+              /></label>
+            </div>
+            <h3 class="template-heading">Background templates</h3>
+            <div id="background-templates" class="background-templates"></div>
             <div class="choices backgrounds">
               <button data-bg="linen">Paper</button
               ><button data-bg="blue">Ink</button
@@ -388,6 +428,12 @@
                 <option value="dots">Dots</option>
                 <option value="grid">Grid</option>
                 <option value="lines">Ruled lines</option>
+                <option value="diagonal">Diagonal</option>
+                <option value="leaves">Leaves</option>
+                <option value="waves">Waves</option>
+                <option value="crosses">Crosses</option>
+                <option value="contour">Contour</option>
+                <option value="woven">Woven</option>
               </select></label
             >
             <div id="bg-preview"><span>Background preview</span></div>
@@ -501,6 +547,8 @@
     <div id="toast" role="status">
       <span id="toast-message"></span><button id="undo" hidden>Undo</button>
     </div>
+    <script src="appearance-presets.js"></script>
+    <script src="drag-motion.js"></script>
     <script src="background-style.js"></script>
     <script src="note-background.js"></script>
     <script src="app.js"></script>

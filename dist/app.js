@@ -188,6 +188,7 @@ function taskCard(t) {
   return `<article class="task ${done ? "completed" : ""}" draggable="true" data-id="${t.id}"><button class="drag-handle" data-move-task="${t.id}" aria-label="Reorder task. Use arrow keys to move." title="Drag to reorder, or use arrow keys">${icon("grip")}</button><button class="complete ${done ? "checked" : ""}" data-complete="${t.id}" aria-label="${done ? "Reopen" : "Complete"} ${esc(t.title)}">${done ? icon("check") : ""}</button><button class="task-main" data-edit="${t.id}"><span class="task-title">${esc(t.title)}</span><span class="task-meta">${t.list ? `<span>${esc(listName(t.list))}</span>` : ""}${dateLabel(t)}${steps.length ? `<span>${icon("checklist")}${steps.filter((s) => s.done).length}/${steps.length}</span>` : ""}${t.body ? `<span class="has-detail">${icon("note")}</span>` : ""}${t.status === "progress" ? '<span class="progress-label">In progress</span>' : ""}</span></button><button class="star-button ${t.priority === "High" ? "starred" : ""}" data-star="${t.id}" aria-label="${t.priority === "High" ? "Remove importance" : "Mark important"}">${icon("star")}</button></article>`;
 }
 function render() {
+  const positions = DragMotion.capture();
   applyAppearance();
   const active = state.tasks.filter((t) => t.status !== "done");
   $("#task-count").textContent = active.length;
@@ -286,6 +287,8 @@ function render() {
   $("#notes-section").hidden = !query && !["all", "notes"].includes(view);
   $("#reminders-section").hidden = !!query || view !== "reminders";
   $("#new-task").hidden = view === "notes";
+  updateSearchFeedback();
+  DragMotion.settle(positions);
 }
 function renderSteps() {
   $("#steps-list").innerHTML = draftSteps
@@ -1000,7 +1003,17 @@ function applyWorkspaceControls() {
     ? state.fit
     : "cover";
   const position = BackgroundStyle.position(state.position);
-  const pattern = ["dots", "grid", "lines"].includes(state.pattern)
+  const pattern = [
+    "dots",
+    "grid",
+    "lines",
+    "diagonal",
+    "leaves",
+    "waves",
+    "crosses",
+    "contour",
+    "woven",
+  ].includes(state.pattern)
     ? state.pattern
     : "none";
   const colors = {
@@ -1013,6 +1026,7 @@ function applyWorkspaceControls() {
     state.bg === "custom"
       ? BackgroundStyle.color(state.backgroundColor)
       : colors[state.bg] || colors.linen;
+  applyBrandColors();
   const foreground = BackgroundStyle.foreground(color);
   const texture = BackgroundStyle.texture(pattern, color);
   document.body.style.setProperty("--radius", radius + "px");
@@ -1070,6 +1084,7 @@ function applyWorkspaceControls() {
   $("#bg-brightness-value").textContent = state.brightness + "%";
   $("#bg-blur-value").textContent = blur + " px";
   $("#bg-overlay-value").textContent = overlay + "%";
+  updatePresetSelection();
 }
 for (const [id, key] of Object.entries({
   "corner-radius": "radius",
@@ -1163,3 +1178,120 @@ $("#clear-completed").onclick = () => {
     },
   );
 };
+
+function applyBrandColors() {
+  const primary = BackgroundStyle.color(state.primary, "#c63820");
+  const secondary = BackgroundStyle.color(state.secondary, "#e8dfce");
+  document.body.style.setProperty("--accent", primary);
+  document.body.style.setProperty(
+    "--accent-ink",
+    BackgroundStyle.foreground(primary),
+  );
+  document.body.style.setProperty("--secondary", secondary);
+  document.body.style.setProperty(
+    "--secondary-ink",
+    BackgroundStyle.foreground(secondary),
+  );
+  $("#primary-color").value = primary;
+  $("#secondary-color").value = secondary;
+}
+function updatePresetSelection() {
+  const target = $("#palette-target").value;
+  const selected =
+    target === "background" ? state.backgroundColor : state[target];
+  $$("#palette button").forEach((button) => {
+    const active = button.dataset.color === selected;
+    button.classList.toggle("selected", active);
+    button.setAttribute("aria-pressed", active);
+  });
+  $$("#background-templates button").forEach((button) => {
+    const preset = AppearancePresets.templates.find(
+      (item) => item.id === button.dataset.template,
+    );
+    const active =
+      state.bg === "custom" &&
+      !state.wallpaper &&
+      state.backgroundColor === preset.color &&
+      (state.pattern || "none") === preset.pattern;
+    button.classList.toggle("selected", active);
+    button.setAttribute("aria-pressed", active);
+  });
+}
+$("#palette").innerHTML = AppearancePresets.colors
+  .map(
+    ([name, color]) =>
+      `<button type="button" data-color="${color}" title="${name}" aria-label="${name}" style="--swatch:${color}"></button>`,
+  )
+  .join("");
+$("#background-templates").innerHTML = AppearancePresets.templates
+  .map(
+    (preset) =>
+      `<button type="button" data-template="${preset.id}"><span class="template-sample" style="background-color:${preset.color}"></span><span>${preset.name}</span></button>`,
+  )
+  .join("");
+$$("[data-template]").forEach((button) => {
+  const preset = AppearancePresets.templates.find(
+    (item) => item.id === button.dataset.template,
+  );
+  button.querySelector(".template-sample").style.backgroundImage =
+    BackgroundStyle.texture(preset.pattern, preset.color);
+});
+$("#palette-target").onchange = updatePresetSelection;
+$("#palette").onclick = (event) => {
+  const button = event.target.closest("[data-color]");
+  if (!button) return;
+  const target = $("#palette-target").value;
+  if (target === "background") {
+    state.bg = "custom";
+    state.backgroundColor = button.dataset.color;
+    delete state.wallpaper;
+  } else state[target] = button.dataset.color;
+  save();
+  applyAppearance();
+};
+$("#background-templates").onclick = (event) => {
+  const button = event.target.closest("[data-template]");
+  if (!button) return;
+  const preset = AppearancePresets.templates.find(
+    (item) => item.id === button.dataset.template,
+  );
+  state.bg = "custom";
+  state.backgroundColor = preset.color;
+  state.pattern = preset.pattern;
+  state.blur = 0;
+  state.overlay = 0;
+  state.brightness = 100;
+  delete state.wallpaper;
+  save();
+  applyAppearance();
+  $("#upload-status").textContent = preset.name + " template applied.";
+};
+for (const key of ["primary", "secondary"]) {
+  $("#" + key + "-color").oninput = (event) => {
+    state[key] = event.target.value;
+    applyAppearance();
+  };
+  $("#" + key + "-color").onchange = save;
+}
+function updateSearchFeedback() {
+  const text = query.trim();
+  $("#clear-search").hidden = !text;
+  $(".sidebar-search kbd").hidden = !!text;
+  $("#search-status").hidden = !text;
+  if (text)
+    $("#search-status").textContent =
+      `${state.tasks.filter(matching).length} tasks ? ${state.notes.filter(matching).length} notes`;
+}
+$("#clear-search").onclick = () => {
+  query = "";
+  $("#search").value = "";
+  render();
+  $("#search").focus();
+};
+$("#search").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    $("#clear-search").click();
+    event.stopPropagation();
+  }
+});
+applyAppearance();

@@ -117,6 +117,9 @@
                 </button>
               </div>
               <div class="task-controls">
+                <button id="clear-completed" class="text-button" hidden>
+                  Clear completed
+                </button>
                 <select id="sort-tasks" aria-label="Sort tasks">
                   <option value="manual">Your order</option>
                   <option value="date">Due date</option>
@@ -251,7 +254,7 @@
             <div id="note-fields">
               <h3>Note options</h3>
               <label class="check"
-                ><input type="checkbox" id="pin-input" /> Keep pinned</label
+                ><input type="checkbox" id="pin-input" /> Pin note</label
               ><label class="check"
                 ><input type="checkbox" id="checklist-input" /> Checklist</label
               >
@@ -317,6 +320,9 @@
         </div>
         <div class="modal-actions">
           <div>
+            <button type="button" class="subtle" id="duplicate-item" hidden>
+              Duplicate
+            </button>
             <button type="button" class="danger" id="delete-item">Delete</button
             ><button type="button" class="subtle" id="task-calendar">
               Add to calendar
@@ -332,7 +338,7 @@
       <div class="modal-heading">
         <div>
           <span class="dialog-kicker">FOLIO / PREFERENCES</span>
-          <h2 id="settings-title">Your workspace.</h2>
+          <h2 id="settings-title">Workspace settings</h2>
         </div>
         <button class="icon-button" id="close-settings" aria-label="Close">
           <span data-icon="close"></span>
@@ -342,7 +348,7 @@
         <section class="settings-section">
           <div>
             <h3>01 / Appearance</h3>
-            <p class="hint">Set the tone.</p>
+            <p class="hint">Choose a theme and corner style.</p>
           </div>
           <div>
             <div class="choices">

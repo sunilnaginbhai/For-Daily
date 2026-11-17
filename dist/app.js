@@ -241,6 +241,10 @@ function render() {
   $("#list-layout").classList.toggle("selected", layout === "list");
   $("#board-layout").classList.toggle("selected", layout === "board");
   $("#board").className = layout === "board" ? "board" : "task-list";
+  const completedCount = tasks.filter((t) => t.status === "done").length;
+  $("#clear-completed").hidden =
+    !completedCount || (filter !== "done" && layout !== "board");
+  $("#clear-completed").textContent = `Clear completed (${completedCount})`;
   const empty = `<div class="empty-state">${icon(filter === "done" ? "check" : "sun")}<h3>${query ? "No matching tasks" : filter === "done" ? "Completed tasks appear here" : view === "all" ? "No tasks for today" : "No tasks here yet"}</h3><p>${query ? "Try a different search." : view === "all" ? "Add a task above, or open All tasks to choose one for today." : "Add your first task using the field above."}</p></div>`;
   $("#board").innerHTML =
     layout === "board"
@@ -323,6 +327,7 @@ function openEditor(type, id, status = "todo") {
   renderSteps();
   $("#step-input").value = "";
   $("#delete-item").hidden = !id;
+  $("#duplicate-item").hidden = !id;
   $("#task-calendar").hidden = type !== "task" || !item.date;
   $("#editor").showModal();
   $("#title-input").focus();
@@ -919,7 +924,7 @@ $("#notes").addEventListener("dragend", () => {
   draggedNote = null;
 });
 document.addEventListener("keydown", (e) => {
-  const handle = e.target.closest("[data-move-note],[data-move-task]");
+  const handle = e.target.closest?.("[data-move-note],[data-move-task]");
   if (
     !handle ||
     !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
@@ -1092,3 +1097,69 @@ $("#bg-color").oninput = (event) => {
   applyAppearance();
 };
 $("#bg-color").onchange = save;
+
+// Pointer interaction keeps fields quiet; keyboard navigation retains a focus ring.
+document.addEventListener(
+  "pointerdown",
+  () => document.body.classList.remove("keyboard-focus"),
+  true,
+);
+document.addEventListener(
+  "keydown",
+  (event) => {
+    if (event.key === "Tab") document.body.classList.add("keyboard-focus");
+  },
+  true,
+);
+
+$("#duplicate-item").onclick = () => {
+  const key = kind === "task" ? "tasks" : "notes";
+  const original = state[key].find((item) => item.id === editing);
+  if (!original) return;
+  const copy = {
+    ...structuredClone(original),
+    id: uid(),
+    title: original.title.slice(0, 173) + " (copy)",
+  };
+  if (kind === "task") {
+    copy.status = "todo";
+    copy.notified = false;
+  } else {
+    copy.pin = false;
+    copy.updated = Date.now();
+  }
+  state[key].unshift(copy);
+  if (!save()) {
+    state[key].shift();
+    return;
+  }
+  render();
+  $("#editor").close();
+  openEditor(kind, copy.id);
+  toast(kind === "task" ? "Task duplicated" : "Note duplicated");
+};
+
+$("#clear-completed").onclick = () => {
+  const removed = state.tasks
+    .map((task, index) => ({ task, index }))
+    .filter(
+      ({ task }) => task.status === "done" && inView(task) && matching(task),
+    );
+  if (!removed.length) return;
+  const ids = new Set(removed.map(({ task }) => task.id));
+  const previous = state.tasks;
+  state.tasks = state.tasks.filter((task) => !ids.has(task.id));
+  if (!save()) {
+    state.tasks = previous;
+    return;
+  }
+  render();
+  toast(
+    `${removed.length} completed task${removed.length === 1 ? "" : "s"} cleared`,
+    () => {
+      removed.forEach(({ task, index }) =>
+        state.tasks.splice(Math.min(index, state.tasks.length), 0, task),
+      );
+    },
+  );
+};

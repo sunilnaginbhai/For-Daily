@@ -1782,3 +1782,49 @@ output {
     top: 112px;
   }
 }
+
+/* Avoid the browser's extra click outline without changing field geometry. */
+input:focus,
+textarea:focus,
+select:focus,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.file-control:focus-within {
+  outline: none;
+}
+.keyboard-focus input:focus,
+.keyboard-focus textarea:focus,
+.keyboard-focus select:focus,
+.keyboard-focus .file-control:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+#clear-completed {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.modal-actions > div {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+#duplicate-item {
+  min-height: 38px;
+}
+.task-controls {
+  flex-wrap: wrap;
+}
+@media (max-width: 680px) {
+  .modal-actions {
+    align-items: flex-end;
+  }
+  .modal-actions > div {
+    gap: 10px;
+  }
+  #duplicate-item {
+    font-size: 13px;
+  }
+}

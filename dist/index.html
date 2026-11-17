@@ -10,6 +10,8 @@
 
   <body>
     <div id="wallpaper" aria-hidden="true"></div>
+    <div id="wallpaper-pattern" aria-hidden="true"></div>
+    <div id="wallpaper-overlay" aria-hidden="true"></div>
     <aside>
       <div class="sidebar-search">
         <input
@@ -268,6 +270,13 @@
                     <option value="rose" hidden>Paper</option>
                   </select></label
                 >
+                <label class="check"
+                  ><input type="checkbox" id="note-use-color" /> Custom
+                  color</label
+                ><label class="color-picker"
+                  >Note color
+                  <input type="color" id="note-custom-color" value="#f7f5ef"
+                /></label>
                 <div id="note-bg-preview">
                   <span>Preview</span
                   ><strong id="note-preview-title">Your note</strong>
@@ -279,6 +288,25 @@
                     type="file"
                     accept="image/*"
                 /></label>
+                <div class="note-image-controls">
+                  <label
+                    >Image focus<select id="note-bg-position">
+                      <option value="center">Center</option>
+                      <option value="top">Top</option>
+                      <option value="bottom">Bottom</option>
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select></label
+                  ><label
+                    >Dark overlay <output id="note-bg-overlay-value">74%</output
+                    ><input
+                      id="note-bg-overlay"
+                      type="range"
+                      min="20"
+                      max="90"
+                      value="74"
+                  /></label>
+                </div>
                 <div class="image-control">
                   <button type="button" id="note-bg-remove">Remove image</button
                   ><span id="note-bg-status" role="status"></span>
@@ -321,6 +349,16 @@
               <button data-theme="light">Light</button
               ><button data-theme="dark">Dark</button>
             </div>
+            <label class="corner-control"
+              >Corner radius <output id="corner-radius-value">16 px</output
+              ><input
+                id="corner-radius"
+                type="range"
+                min="0"
+                max="28"
+                step="2"
+                value="16"
+            /></label>
           </div>
         </section>
         <section class="settings-section">
@@ -335,6 +373,17 @@
               ><button data-bg="sand">Vermilion</button
               ><button data-bg="sage" hidden>Paper</button>
             </div>
+            <label class="color-picker"
+              >Custom color
+              <input id="bg-color" type="color" value="#f7f5ef" /></label
+            ><label
+              >Texture<select id="bg-pattern">
+                <option value="none">None</option>
+                <option value="dots">Dots</option>
+                <option value="grid">Grid</option>
+                <option value="lines">Ruled lines</option>
+              </select></label
+            >
             <div id="bg-preview"><span>Background preview</span></div>
             <label class="file-control"
               >Upload image<input
@@ -345,14 +394,46 @@
             <p class="hint" id="upload-status" role="status">
               JPG, PNG or WebP. Up to 25 MB.
             </p>
-            <label
-              >Image brightness<input
-                id="bg-brightness"
-                type="range"
-                min="20"
-                max="100"
-                value="85" /></label
-            ><button id="reset-bg" class="text-button">Reset background</button>
+            <div class="background-controls">
+              <div class="form-row">
+                <label
+                  >Image fit<select id="bg-fit">
+                    <option value="cover">Fill screen</option>
+                    <option value="contain">Fit inside</option>
+                    <option value="tile">Tile</option>
+                  </select></label
+                ><label
+                  >Focus<select id="bg-position">
+                    <option value="center">Center</option>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                  </select></label
+                >
+              </div>
+              <label
+                >Brightness <output id="bg-brightness-value">85%</output
+                ><input
+                  id="bg-brightness"
+                  type="range"
+                  min="20"
+                  max="100"
+                  value="85" /></label
+              ><label
+                >Blur <output id="bg-blur-value">0 px</output
+                ><input
+                  id="bg-blur"
+                  type="range"
+                  min="0"
+                  max="16"
+                  value="0" /></label
+              ><label
+                >Dark overlay <output id="bg-overlay-value">0%</output
+                ><input id="bg-overlay" type="range" min="0" max="70" value="0"
+              /></label>
+            </div>
+            <button id="reset-bg" class="text-button">Reset background</button>
           </div>
         </section>
         <section class="settings-section">
@@ -414,6 +495,7 @@
     <div id="toast" role="status">
       <span id="toast-message"></span><button id="undo" hidden>Undo</button>
     </div>
+    <script src="background-style.js"></script>
     <script src="note-background.js"></script>
     <script src="app.js"></script>
   </body>

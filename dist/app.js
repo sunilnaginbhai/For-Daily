@@ -43,6 +43,13 @@ const seed = {
   theme: "light",
   bg: "linen",
   brightness: 85,
+  radius: 16,
+  blur: 0,
+  overlay: 0,
+  pattern: "none",
+  fit: "cover",
+  position: "center",
+  backgroundColor: "#f7f5ef",
 };
 let state;
 try {
@@ -131,6 +138,7 @@ function applyAppearance() {
     ),
   );
   $("#theme").innerHTML = icon(state.theme === "dark" ? "sun" : "moon");
+  applyWorkspaceControls();
 }
 function dateLabel(t) {
   if (!t.date) return "";
@@ -364,6 +372,7 @@ $("#edit-form").onsubmit = (e) => {
       : {
           color: $("#color-input").value,
           background: noteBackground.image,
+          ...noteBackground.settings(),
           pin: $("#pin-input").checked,
           checklist: $("#checklist-input").checked,
           checked:
@@ -639,6 +648,12 @@ $("#reset-bg").onclick = () => {
   delete state.wallpaper;
   state.bg = "blue";
   state.brightness = 85;
+  state.blur = 0;
+  state.overlay = 0;
+  state.fit = "cover";
+  state.position = "center";
+  state.pattern = "none";
+  state.backgroundColor = "#f7f5ef";
   save();
   applyAppearance();
   $("#upload-status").textContent = "Background reset.";
@@ -772,7 +787,7 @@ $("#restore").onchange = async (e) => {
       Math.max(20, Number(state.brightness) || 85),
     );
     state.theme = state.theme === "dark" ? "dark" : "light";
-    state.bg = ["blue", "linen", "sage", "sand"].includes(state.bg)
+    state.bg = ["blue", "linen", "sage", "sand", "custom"].includes(state.bg)
       ? state.bg
       : "blue";
     state.tasks.forEach((t) => {
@@ -960,9 +975,120 @@ function renderNote(n) {
 function applyNoteBackgrounds() {
   $$("#notes [data-note-id]").forEach((card) => {
     const note = state.notes.find((note) => note.id === card.dataset.noteId);
+    if (note)
+      BackgroundStyle.applyNote(card, {
+        ...note,
+        background: validImageData(note.background) ? note.background : "",
+      });
     if (note && validImageData(note.background) && note.background) {
       card.classList.add("note-photo");
-      card.style.backgroundImage = `url("${note.background}")`;
     }
   });
 }
+
+function applyWorkspaceControls() {
+  const clamp = BackgroundStyle.clamp.bind(BackgroundStyle);
+  const radius = clamp(state.radius, 0, 28, 16);
+  const blur = clamp(state.blur, 0, 16, 0);
+  const overlay = clamp(state.overlay, 0, 70, 0);
+  const fit = ["cover", "contain", "tile"].includes(state.fit)
+    ? state.fit
+    : "cover";
+  const position = BackgroundStyle.position(state.position);
+  const pattern = ["dots", "grid", "lines"].includes(state.pattern)
+    ? state.pattern
+    : "none";
+  const colors = {
+    linen: state.theme === "dark" ? "#20201e" : "#f7f5ef",
+    sage: state.theme === "dark" ? "#20201e" : "#f7f5ef",
+    blue: "#20201e",
+    sand: "#c63820",
+  };
+  const color =
+    state.bg === "custom"
+      ? BackgroundStyle.color(state.backgroundColor)
+      : colors[state.bg] || colors.linen;
+  const foreground = BackgroundStyle.foreground(color);
+  const texture = BackgroundStyle.texture(pattern, color);
+  document.body.style.setProperty("--radius", radius + "px");
+  document.body.style.setProperty(
+    "--control-radius",
+    Math.min(radius, 10) + "px",
+  );
+  document.body.style.setProperty("--workspace-foreground", foreground);
+  document.body.style.setProperty("--workspace-tone", color);
+  const layer = $("#wallpaper");
+  layer.style.backgroundColor = color;
+  layer.style.backgroundSize = fit === "tile" ? "360px auto" : fit;
+  layer.style.backgroundRepeat = fit === "tile" ? "repeat" : "no-repeat";
+  layer.style.backgroundPosition = position;
+  layer.style.filter = `brightness(${state.brightness / 100}) blur(${blur}px)`;
+  $("#wallpaper-pattern").style.backgroundImage = texture;
+  $("#wallpaper-pattern").style.opacity = pattern === "none" ? "0" : ".22";
+  $("#wallpaper-overlay").style.opacity = state.wallpaper
+    ? String(overlay / 100)
+    : "0";
+  const preview = $("#bg-preview");
+  const image = state.wallpaper ? `url("${state.wallpaper}")` : "none";
+  preview.style.backgroundImage = "";
+  preview.style.backgroundColor = color;
+  preview.style.setProperty("--preview-image", image);
+  preview.style.setProperty("--preview-texture", texture || "none");
+  preview.style.setProperty(
+    "--preview-size",
+    fit === "tile" ? "90px auto" : fit,
+  );
+  preview.style.setProperty("--preview-position", position);
+  preview.style.setProperty(
+    "--preview-repeat",
+    fit === "tile" ? "repeat" : "no-repeat",
+  );
+  preview.style.setProperty(
+    "--preview-filter",
+    `brightness(${state.brightness / 100}) blur(${blur / 4}px)`,
+  );
+  preview.style.setProperty(
+    "--preview-overlay",
+    state.wallpaper ? overlay / 100 : 0,
+  );
+  for (const [id, value] of Object.entries({
+    "corner-radius": radius,
+    "bg-blur": blur,
+    "bg-overlay": overlay,
+    "bg-fit": fit,
+    "bg-position": position,
+    "bg-pattern": pattern,
+    "bg-color": BackgroundStyle.color(state.backgroundColor),
+  }))
+    $("#" + id).value = value;
+  $("#corner-radius-value").textContent = radius + " px";
+  $("#bg-brightness-value").textContent = state.brightness + "%";
+  $("#bg-blur-value").textContent = blur + " px";
+  $("#bg-overlay-value").textContent = overlay + "%";
+}
+for (const [id, key] of Object.entries({
+  "corner-radius": "radius",
+  "bg-blur": "blur",
+  "bg-overlay": "overlay",
+  "bg-fit": "fit",
+  "bg-position": "position",
+  "bg-pattern": "pattern",
+})) {
+  const input = $("#" + id);
+  input.oninput = () => {
+    state[key] = input.type === "range" ? Number(input.value) : input.value;
+    applyAppearance();
+  };
+  input.onchange = () => {
+    state[key] = input.type === "range" ? Number(input.value) : input.value;
+    save();
+    applyAppearance();
+  };
+}
+$("#bg-color").oninput = (event) => {
+  state.backgroundColor = event.target.value;
+  state.bg = "custom";
+  delete state.wallpaper;
+  applyAppearance();
+};
+$("#bg-color").onchange = save;

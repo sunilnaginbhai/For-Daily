@@ -1095,7 +1095,7 @@ select option {
   content: "";
   position: absolute;
   inset: 0;
-  background: #20201ebd;
+  background: rgb(32 32 30 / var(--note-overlay, 0.74));
   z-index: -1;
 }
 .file-control {
@@ -1271,32 +1271,20 @@ body.dark {
   --muted: var(--ink);
   --soft-line: #f7f5ef40;
 }
-body[data-bg="blue"]:not(.custom-bg) #wallpaper {
-  background-color: #20201e;
+body:not(.custom-bg) .welcome,
+body:not(.custom-bg) .section-heading {
+  color: var(--workspace-foreground, var(--ink));
 }
-body[data-bg="sand"]:not(.custom-bg) #wallpaper {
-  background-color: #c63820;
+body:not(.custom-bg) .welcome,
+body:not(.custom-bg) #notes-section {
+  border-color: var(--workspace-foreground, var(--ink));
 }
-body[data-bg="blue"]:not(.custom-bg) .welcome,
-body[data-bg="sand"]:not(.custom-bg) .welcome {
-  color: #f7f5ef;
-  border-color: #f7f5ef;
-}
-body[data-bg="blue"]:not(.custom-bg) .section-heading,
-body[data-bg="sand"]:not(.custom-bg) .section-heading {
-  color: #f7f5ef;
-}
-body[data-bg="blue"]:not(.custom-bg) .notes-tools .subtle,
-body[data-bg="sand"]:not(.custom-bg) .notes-tools .subtle {
-  color: #f7f5ef;
+body:not(.custom-bg) .notes-tools .subtle {
+  color: var(--workspace-foreground, var(--ink));
 }
 body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
   background: #20201e;
   border-color: #20201e;
-}
-body[data-bg="blue"]:not(.custom-bg) #notes-section,
-body[data-bg="sand"]:not(.custom-bg) #notes-section {
-  border-color: #f7f5ef;
 }
 .content[data-layout="single"] .empty-notes {
   background: var(--paper);
@@ -1629,5 +1617,168 @@ body[data-bg="sand"]:not(.custom-bg) #notes-section {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+/* Geometry follows the workspace's saved corner preference. */
+:root {
+  --radius: 16px;
+  --control-radius: 10px;
+}
+main {
+  z-index: 1;
+}
+body {
+  background: var(--workspace-tone, var(--paper));
+}
+dialog,
+.task-surface,
+.planned-card,
+.note,
+.reminder-info,
+#note-capture,
+#bg-preview,
+#note-bg-preview,
+.custom-bg .welcome,
+.custom-bg .section-heading,
+.empty-notes {
+  border-radius: var(--radius);
+}
+dialog,
+.note,
+#bg-preview,
+#note-bg-preview {
+  overflow: hidden;
+}
+dialog {
+  overflow-y: auto;
+}
+.primary,
+.subtle,
+.icon-button,
+.choices button,
+.view-switch,
+.sidebar-search input,
+nav button,
+#list-nav button,
+#toast,
+.file-control,
+.step-add,
+#mobile-lists {
+  border-radius: var(--control-radius);
+}
+label input:not([type="checkbox"]):not([type="range"]):not([type="file"]),
+label select {
+  border-radius: var(--control-radius);
+}
+.complete {
+  border-radius: 50%;
+}
+.column {
+  border-radius: var(--control-radius);
+}
+.modal-heading {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.note-photo::before,
+#note-bg-preview.has-image::before {
+  border-radius: inherit;
+}
+#wallpaper-pattern,
+#wallpaper-overlay {
+  position: fixed;
+  inset: 0 0 0 246px;
+  z-index: 0;
+  pointer-events: none;
+}
+#wallpaper-pattern {
+  background-repeat: repeat;
+}
+#wallpaper-overlay {
+  background: #20201e;
+}
+#wallpaper {
+  transform: scale(1.035);
+}
+#bg-preview {
+  position: relative;
+  isolation: isolate;
+}
+#bg-preview::before,
+#bg-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#bg-preview::before {
+  background-image: var(--preview-image);
+  background-position: var(--preview-position, center);
+  background-size: var(--preview-size, cover);
+  background-repeat: var(--preview-repeat, no-repeat);
+  filter: var(--preview-filter, none);
+}
+#bg-preview::after {
+  background-image: var(--preview-texture);
+  background-color: rgb(32 32 30 / var(--preview-overlay, 0));
+}
+#bg-preview > span {
+  border-radius: var(--control-radius);
+}
+.color-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 20px;
+}
+label input[type="color"] {
+  width: 54px !important;
+  height: 38px;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 3px !important;
+  cursor: pointer;
+}
+.color-picker input:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.corner-control {
+  margin: 24px 0 0;
+}
+output {
+  float: right;
+  font:
+    12px ui-monospace,
+    monospace;
+}
+.background-controls {
+  margin-top: 22px;
+}
+.note-image-controls {
+  margin-top: 20px;
+}
+.note-image-controls label {
+  margin-bottom: 16px;
+}
+.settings-section {
+  align-items: start;
+}
+.choices {
+  flex-wrap: wrap;
+}
+@media (max-width: 1000px) {
+  #wallpaper-pattern,
+  #wallpaper-overlay {
+    left: 215px;
+  }
+}
+@media (max-width: 680px) {
+  #wallpaper-pattern,
+  #wallpaper-overlay {
+    left: 0;
+    top: 112px;
   }
 }

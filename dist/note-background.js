@@ -18,6 +18,15 @@ window.NoteBackgroundEditor = class NoteBackgroundEditor {
     ["#title-input", "#body-input", "#color-input"].forEach((selector) => {
       select(selector).addEventListener("input", () => this.preview());
     });
+    [
+      "#note-use-color",
+      "#note-custom-color",
+      "#note-bg-position",
+      "#note-bg-overlay",
+    ].forEach((selector) => {
+      select(selector).addEventListener("input", () => this.preview());
+      select(selector).addEventListener("change", () => this.preview());
+    });
   }
 
   reset(note) {
@@ -27,7 +36,30 @@ window.NoteBackgroundEditor = class NoteBackgroundEditor {
     this.select("#save-item").disabled = false;
     this.select("#note-bg-upload").value = "";
     this.select("#note-bg-status").textContent = "";
+    this.select("#note-use-color").checked = !!note.customColor;
+    this.select("#note-custom-color").value = BackgroundStyle.color(
+      note.customColor,
+    );
+    this.select("#note-bg-position").value = BackgroundStyle.position(
+      note.imagePosition,
+    );
+    this.select("#note-bg-overlay").value = BackgroundStyle.clamp(
+      note.imageOverlay,
+      20,
+      90,
+      74,
+    );
     this.preview();
+  }
+
+  settings() {
+    return {
+      customColor: this.select("#note-use-color").checked
+        ? this.select("#note-custom-color").value
+        : "",
+      imagePosition: this.select("#note-bg-position").value,
+      imageOverlay: Number(this.select("#note-bg-overlay").value),
+    };
   }
 
   preview() {
@@ -35,6 +67,15 @@ window.NoteBackgroundEditor = class NoteBackgroundEditor {
     preview.className = this.select("#color-input").value;
     preview.classList.toggle("has-image", !!this.image);
     preview.style.backgroundImage = this.image ? `url("${this.image}")` : "";
+    BackgroundStyle.applyNote(preview, {
+      background: this.image,
+      ...this.settings(),
+    });
+    this.select("#note-bg-overlay-value").textContent =
+      this.settings().imageOverlay + "%";
+    this.select("#note-custom-color").disabled =
+      !this.select("#note-use-color").checked;
+    this.select(".note-image-controls").hidden = !this.image;
     this.select("#note-preview-title").textContent =
       this.select("#title-input").value || "Your note";
     this.select("#note-preview-body").textContent =

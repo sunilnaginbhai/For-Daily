@@ -31,6 +31,9 @@ function icon(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name] || paths.note}"/></svg>`;
 }
 $$("[data-icon]").forEach((el) => (el.innerHTML = icon(el.dataset.icon)));
+const STORAGE_KEY = "workspace-v1";
+const LAYOUT_KEY = "workspace-layout";
+const VIEW_KEY = "workspace-active-view";
 const todayKey = () => new Date().toLocaleDateString("en-CA");
 const natureWallpaper = new NatureWallpaper(() => applyAppearance());
 function effectiveWallpaper() {
@@ -41,6 +44,22 @@ function useManualBackground() {
   natureWallpaper.sync(false, state.natureQuality);
 }
 const noteBackground = new NoteBackgroundEditor($, encodeBackground);
+const fontFamilies = {
+  "google-sans": '"Google Sans", sans-serif',
+  arial: "Arial, sans-serif",
+  helvetica: "Helvetica, Arial, sans-serif",
+  verdana: "Verdana, sans-serif",
+  tahoma: "Tahoma, sans-serif",
+  "trebuchet-ms": '"Trebuchet MS", sans-serif',
+  georgia: "Georgia, serif",
+  "times-new-roman": '"Times New Roman", serif',
+  garamond: "Garamond, serif",
+  "palatino-linotype": '"Palatino Linotype", "Book Antiqua", serif',
+  "courier-new": '"Courier New", monospace',
+  consolas: "Consolas, monospace",
+  "system-ui": "system-ui, sans-serif",
+  monospace: "monospace",
+};
 const seed = {
   tasks: [],
   notes: [],
@@ -52,6 +71,8 @@ const seed = {
   bg: "linen",
   brightness: 85,
   radius: 16,
+  fontSize: 15,
+  fontFamily: "google-sans",
   blur: 0,
   overlay: 0,
   pattern: "none",
@@ -61,28 +82,81 @@ const seed = {
 };
 let state;
 try {
-  state = JSON.parse(localStorage.getItem("folio-v1")) || structuredClone(seed);
+  const savedState = localStorage.getItem(STORAGE_KEY);
+  state = JSON.parse(savedState) || structuredClone(seed);
 } catch {
   state = structuredClone(seed);
 }
 state.lists ||= structuredClone(seed.lists);
 state.brightness ||= 85;
+state.fontSize ??= 15;
+state.fontFamily ??= "google-sans";
 // Upgrade existing workspaces without replacing their tasks or notes.
 state.tasks.forEach((t) => {
   t.steps ||= [];
   if (t.myDay === undefined) t.myDay = t.status !== "done" ? todayKey() : null;
   t.list ||= "";
 });
-let view = "all",
+function isValidView(candidate) {
+  return (
+    ["all", "important", "reminders", "tasks", "notes"].includes(candidate) ||
+    (typeof candidate === "string" &&
+      candidate.startsWith("list:") &&
+      state.lists.some((list) => list.id === candidate.slice(5)))
+  );
+}
+function restoreView() {
+  try {
+    const savedView = localStorage.getItem(VIEW_KEY);
+    return isValidView(savedView) ? savedView : "all";
+  } catch {
+    $("#save-status").textContent = "Could not restore the last view";
+    return "all";
+  }
+}
+let view = restoreView(),
   query = "",
   editing = null,
   kind = "task",
   dragging = null,
   filter = "active",
-  layout = localStorage.getItem("folio-layout") || "list",
+  layout = localStorage.getItem(LAYOUT_KEY) || "list",
   sort = "manual",
   draftSteps = [],
-  undoAction = null;
+  undoAction = null,
+  taskCompleteAudio = null;
+function selectView(nextView) {
+  view = nextView;
+  try {
+    localStorage.setItem(VIEW_KEY, nextView);
+  } catch {
+    $("#save-status").textContent = "Could not save the selected view";
+  }
+}
+function playTaskCompleteSound() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return;
+  try {
+    const ctx = taskCompleteAudio || new AudioCtor();
+    taskCompleteAudio = ctx;
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+
+    const oscillator = ctx.createOscillator();
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(620, now);
+    oscillator.frequency.exponentialRampToValueAtTime(860, now + 0.18);
+    oscillator.connect(gain);
+    oscillator.start(now);
+    oscillator.stop(now + 0.2);
+  } catch {
+    // Ignore unsupported browsers or autoplay restrictions.
+  }
+}
 function esc(s) {
   return String(s ?? "").replace(
     /[&<>"']/g,
@@ -96,6 +170,7 @@ function toast(message, undo) {
   $("#toast-message").textContent = message;
   undoAction = undo || null;
   $("#undo").hidden = !undo;
+  $("#toast").classList.toggle("has-undo", !!undo);
   $("#toast").classList.add("show");
   clearTimeout(window.tt);
   window.tt = setTimeout(
@@ -114,7 +189,7 @@ $("#undo").onclick = () => {
 };
 function save() {
   try {
-    localStorage.setItem("folio-v1", JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     $("#save-status").textContent = "All changes saved";
     return true;
   } catch {
@@ -446,14 +521,14 @@ function calendar(id) {
     [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Folio//Workspace//EN",
+      "PRODID:-//Workspace//Tasks//EN",
       "BEGIN:VEVENT",
-      `UID:${t.id}@folio.local`,
+      `UID:${t.id}@workspace.local`,
       `DTSTAMP:${fmt(new Date())}`,
       `DTSTART:${fmt(start)}`,
       `DTEND:${fmt(new Date(+start + 1800000))}`,
       `SUMMARY:${clean(t.title)}`,
-      `DESCRIPTION:${clean(t.body || "Folio task")}`,
+      `DESCRIPTION:${clean(t.body || "Workspace task")}`,
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
       "DESCRIPTION:Task reminder",
@@ -462,7 +537,7 @@ function calendar(id) {
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n"),
-    "folio-reminder.ics",
+    "workspace-reminder.ics",
     "text/calendar",
   );
   toast("Open the downloaded file in your calendar to activate the reminder.");
@@ -475,11 +550,13 @@ document.addEventListener("click", (e) => {
   if (d.complete) {
     const t = state.tasks.find((t) => t.id === d.complete),
       old = t.status;
-    t.status = t.status === "done" ? "todo" : "done";
+    const completed = t.status !== "done";
+    t.status = completed ? "done" : "todo";
+    if (completed) playTaskCompleteSound();
     save();
     render();
     toast(
-      t.status === "done" ? "Task completed" : "Task reopened",
+      completed ? "Task completed" : "Task reopened",
       () => (t.status = old),
     );
     return;
@@ -519,7 +596,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (d.view) {
-    view = d.view;
+    selectView(d.view);
     filter = "active";
     query = "";
     $("#search").value = "";
@@ -563,6 +640,32 @@ document.addEventListener("change", (e) => {
     save();
     render();
   }
+});
+document.addEventListener("workspace:add-task", (event) => {
+  const { title, body, onComplete } = event.detail || {};
+  if (typeof title !== "string" || !title.trim()) {
+    onComplete?.(false);
+    return;
+  }
+  const task = {
+    id: uid(),
+    title: title.trim(),
+    body: typeof body === "string" ? body.trim() : "",
+    status: "todo",
+    priority: "Normal",
+    date: "",
+    steps: [],
+    myDay: todayKey(),
+    list: "",
+  };
+  state.tasks.unshift(task);
+  if (!save()) {
+    state.tasks.shift();
+    onComplete?.(false);
+    return;
+  }
+  render();
+  onComplete?.(true);
 });
 $("#quick-task").onsubmit = (e) => {
   e.preventDefault();
@@ -637,12 +740,12 @@ $("#sort-tasks").onchange = (e) => {
 };
 $("#list-layout").onclick = () => {
   layout = "list";
-  localStorage.setItem("folio-layout", layout);
+  localStorage.setItem(LAYOUT_KEY, layout);
   render();
 };
 $("#board-layout").onclick = () => {
   layout = "board";
-  localStorage.setItem("folio-layout", layout);
+  localStorage.setItem(LAYOUT_KEY, layout);
   render();
 };
 $("#theme").onclick = () => {
@@ -731,7 +834,7 @@ $("#background-upload").onchange = async (e) => {
 $("#backup").onclick = () =>
   download(
     JSON.stringify(state, null, 2),
-    "folio-backup.json",
+    "workspace-backup.json",
     "application/json",
   );
 function validImageData(value) {
@@ -789,7 +892,7 @@ $("#restore").onchange = async (e) => {
   if (!f) return;
   try {
     const data = JSON.parse(await f.text());
-    if (!validBackup(data)) throw Error("This is not a valid Folio backup.");
+    if (!validBackup(data)) throw Error("This is not a valid workspace backup.");
     const old = structuredClone(state);
     state = { ...structuredClone(seed), ...data };
     state.lists ||= structuredClone(seed.lists);
@@ -805,7 +908,7 @@ $("#restore").onchange = async (e) => {
       t.steps ||= [];
       t.list ||= "";
     });
-    view = "tasks";
+    selectView("tasks");
     if (!save()) {
       state = old;
       return;
@@ -823,7 +926,7 @@ $("#mobile-lists").onchange = (e) => {
     $("#new-list").click();
     e.target.value = "";
   } else if (e.target.value) {
-    view = "list:" + e.target.value;
+    selectView("list:" + e.target.value);
     filter = "active";
     render();
   }
@@ -840,7 +943,7 @@ $("#list-form").onsubmit = (e) => {
   if (!name) return;
   const list = { id: uid(), name };
   state.lists.push(list);
-  view = "list:" + list.id;
+  selectView("list:" + list.id);
   save();
   render();
   $("#list-dialog").close();
@@ -1000,6 +1103,15 @@ function applyNoteBackgrounds() {
 function applyWorkspaceControls() {
   const clamp = BackgroundStyle.clamp.bind(BackgroundStyle);
   const radius = clamp(state.radius, 0, 28, 16);
+  const fontSize = Math.round(clamp(state.fontSize, 12, 24, 15));
+  const fontKey = Object.prototype.hasOwnProperty.call(
+    fontFamilies,
+    state.fontFamily,
+  )
+    ? state.fontFamily
+    : "google-sans";
+  state.fontFamily = fontKey;
+  const fontFamily = fontFamilies[fontKey];
   const blur = clamp(state.blur, 0, 16, 0);
   const overlay = clamp(state.overlay, 0, 70, 0);
   const fit = ["cover", "contain", "tile"].includes(state.fit)
@@ -1033,6 +1145,14 @@ function applyWorkspaceControls() {
   const foreground = BackgroundStyle.foreground(color);
   const texture = BackgroundStyle.texture(pattern, color);
   document.body.style.setProperty("--radius", radius + "px");
+  document.body.style.setProperty(
+    "--workspace-font-scale",
+    String(fontSize / 15),
+  );
+  if (fontKey === "google-sans")
+    document.body.style.removeProperty("--workspace-font-family");
+  else
+    document.body.style.setProperty("--workspace-font-family", fontFamily);
   document.body.style.setProperty(
     "--control-radius",
     Math.min(radius, 10) + "px",
@@ -1077,6 +1197,8 @@ function applyWorkspaceControls() {
   );
   for (const [id, value] of Object.entries({
     "corner-radius": radius,
+    "font-size": fontSize,
+    "font-family": fontKey,
     "bg-blur": blur,
     "bg-overlay": overlay,
     "bg-fit": fit,
@@ -1086,6 +1208,7 @@ function applyWorkspaceControls() {
   }))
     $("#" + id).value = value;
   $("#corner-radius-value").textContent = radius + " px";
+  $("#font-size-value").textContent = fontSize + " px";
   $("#bg-brightness-value").textContent = state.brightness + "%";
   $("#bg-blur-value").textContent = blur + " px";
   $("#bg-overlay-value").textContent = overlay + "%";
@@ -1095,6 +1218,8 @@ function applyWorkspaceControls() {
 }
 for (const [id, key] of Object.entries({
   "corner-radius": "radius",
+  "font-size": "fontSize",
+  "font-family": "fontFamily",
   "bg-blur": "blur",
   "bg-overlay": "overlay",
   "bg-fit": "fit",

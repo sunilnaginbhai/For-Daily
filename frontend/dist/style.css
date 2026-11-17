@@ -21,7 +21,8 @@
 }
 body {
   margin: 0;
-  font-size: 15px;
+  font-family: var(--workspace-font-family, "Google Sans", sans-serif);
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   line-height: 1.5;
   color: var(--ink);
   background: var(--paper);
@@ -51,11 +52,11 @@ button:disabled {
   cursor: wait;
   opacity: 0.6;
 }
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
+.keyboard-focus button:focus-visible,
+.keyboard-focus a:focus-visible,
+.keyboard-focus input:focus-visible,
+.keyboard-focus textarea:focus-visible,
+.keyboard-focus select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
 }
@@ -79,11 +80,11 @@ button svg {
 }
 h1,
 h2 {
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--workspace-font-family, Fraunces, Georgia, serif);
   font-weight: 600;
 }
 h3 {
-  font-size: 15px;
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   font-weight: 500;
   margin: 0 0 16px;
 }
@@ -104,8 +105,8 @@ aside {
   overflow-y: auto;
 }
 .logo {
-  font-family: Fraunces, Georgia, serif;
-  font-size: 36px;
+  font-family: var(--workspace-font-family, Fraunces, Georgia, serif);
+  font-size: calc(var(--workspace-font-scale, 1) * 36px);
   letter-spacing: -2px;
   text-decoration: none;
   display: flex;
@@ -114,14 +115,14 @@ aside {
 }
 .brand-icon {
   color: var(--accent);
-  font-size: 38px;
+  font-size: calc(var(--workspace-font-scale, 1) * 38px);
 }
 .account {
   display: flex;
   gap: 9px;
   align-items: center;
   margin: 24px 0 30px;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
 }
 .avatar {
   width: 29px;
@@ -129,7 +130,7 @@ aside {
   border: 1px solid var(--line);
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -143,7 +144,7 @@ aside {
   border: 0;
   border-bottom: 1px solid var(--line);
   background: transparent;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .sidebar-search > span {
   position: absolute;
@@ -156,7 +157,7 @@ nav button,
   width: 100%;
   justify-content: flex-start;
   padding: 12px 9px;
-  font-size: 15px;
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   gap: 11px;
   text-align: left;
 }
@@ -171,7 +172,7 @@ nav button > span:nth-child(2),
 nav button b,
 #list-nav button b {
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   font-weight: 400;
 }
@@ -197,7 +198,7 @@ nav button.active svg {
   align-items: center;
   justify-content: space-between;
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   letter-spacing: 1px;
   margin-bottom: 9px;
@@ -205,13 +206,13 @@ nav button.active svg {
 .nav-label button {
   width: 26px;
   height: 26px;
-  font-size: 23px;
+  font-size: calc(var(--workspace-font-scale, 1) * 23px);
 }
 #list-nav {
   padding-bottom: 25px;
 }
 #list-nav button {
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .side-bottom {
   margin-top: auto;
@@ -220,13 +221,13 @@ nav button.active svg {
 }
 #appearance {
   padding: 0;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
 }
 .storage-status {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   margin-top: 15px;
   color: var(--muted);
 }
@@ -262,7 +263,7 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
 }
 .header-right {
   display: flex;
@@ -306,14 +307,14 @@ header {
 }
 .eyebrow {
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 15px;
 }
 h1 {
-  font-size: clamp(48px, 5.6vw, 84px);
+  font-size: calc(var(--workspace-font-scale, 1) * clamp(48px, 5.6vw, 84px));
   line-height: 1.02;
   letter-spacing: -4px;
   margin: 0;
@@ -324,7 +325,7 @@ h1 {
   border: 1px solid var(--accent);
   min-height: 44px;
   padding: 11px 17px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   font-weight: 500;
 }
 .primary:hover {
@@ -336,7 +337,7 @@ h1 {
   border: 1px solid var(--line);
   min-height: 40px;
   padding: 9px 13px;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   background: var(--paper);
 }
 .subtle:hover {
@@ -381,7 +382,7 @@ h1 {
   border: 0;
   flex: 1;
   min-width: 0;
-  font-size: 16px;
+  font-size: calc(var(--workspace-font-scale, 1) * 16px);
   outline: none;
 }
 #quick-task button {
@@ -404,14 +405,14 @@ h1 {
 .filter-tabs button {
   padding: 9px 0 12px;
   border-bottom: 2px solid transparent;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .filter-tabs button.selected {
   border-color: var(--accent);
 }
 .filter-tabs button span {
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   color: var(--muted);
 }
@@ -422,7 +423,7 @@ h1 {
   padding-bottom: 8px;
 }
 .task-controls select {
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   background: var(--paper);
   border: 0;
   max-width: 105px;
@@ -500,7 +501,7 @@ h1 {
   gap: 6px;
 }
 .task-title {
-  font-size: 16px;
+  font-size: calc(var(--workspace-font-scale, 1) * 16px);
   overflow-wrap: anywhere;
 }
 .task-meta {
@@ -508,7 +509,7 @@ h1 {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   color: var(--muted);
 }
 .task-meta:empty {
@@ -560,12 +561,12 @@ h1 {
   margin-bottom: 25px;
 }
 .empty-state h3 {
-  font-size: 20px;
+  font-size: calc(var(--workspace-font-scale, 1) * 20px);
   margin: 0 0 12px;
   letter-spacing: -0.4px;
 }
 .empty-state p {
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   color: var(--muted);
   max-width: 340px;
   margin: 0;
@@ -586,18 +587,18 @@ h1 {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   border-bottom: 1px solid var(--line);
   padding-bottom: 12px;
 }
 .column-heading small {
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
 }
 .column-heading button {
   margin-left: auto;
-  font-size: 19px;
+  font-size: calc(var(--workspace-font-scale, 1) * 19px);
   padding: 0;
 }
 .board .task {
@@ -609,7 +610,7 @@ h1 {
   display: none;
 }
 .board .task-title {
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .board .complete {
   width: 17px;
@@ -627,7 +628,7 @@ h1 {
 }
 .add-inline {
   padding: 13px 0 0;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
 }
 .drop-target {
   outline: 2px solid var(--accent);
@@ -644,7 +645,7 @@ h1 {
   margin-bottom: 25px;
 }
 h2 {
-  font-size: 34px;
+  font-size: calc(var(--workspace-font-scale, 1) * 34px);
   letter-spacing: -1.5px;
   line-height: 1.1;
   margin: 0;
@@ -657,7 +658,7 @@ h2 {
   padding: 0;
   min-height: auto;
   background: transparent;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   color: var(--ink);
 }
 .notes-tools .subtle:hover {
@@ -668,7 +669,7 @@ h2 {
   justify-content: flex-start;
   border: 1px solid var(--line);
   padding: 14px;
-  font-size: 15px;
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   background: var(--paper);
   margin-bottom: 22px;
 }
@@ -706,7 +707,7 @@ h2 {
   margin-bottom: 14px;
 }
 .note-title {
-  font-size: 19px;
+  font-size: calc(var(--workspace-font-scale, 1) * 19px);
   font-weight: 500;
   text-align: left;
   padding: 0;
@@ -736,7 +737,7 @@ h2 {
   overflow-wrap: anywhere;
   display: block;
   padding: 0 0 10px;
-  font-size: 15px;
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   line-height: 1.6;
 }
 .note-actions {
@@ -773,7 +774,7 @@ h2 {
   display: flex;
   gap: 9px;
   align-items: flex-start;
-  font-size: 15px;
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   margin: 0;
 }
 .note-checks input {
@@ -798,7 +799,7 @@ h2 {
   background: var(--paper);
   padding: 24px 18px;
   border-top: 1px solid var(--line);
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   color: var(--muted);
 }
 .empty-notes svg {
@@ -815,7 +816,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   padding: 14px 0 20px;
 }
 .reminder-info {
@@ -828,7 +829,7 @@ h2 {
 }
 .reminder-info p {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   line-height: 1.7;
 }
 .reminder-info > span {
@@ -854,7 +855,7 @@ h2 {
   margin-bottom: 20px;
 }
 .auto-nature-heading h3 {
-  font-size: 16px;
+  font-size: calc(var(--workspace-font-scale, 1) * 16px);
   margin: 0 0 4px;
 }
 .auto-nature .hint {
@@ -867,7 +868,7 @@ h2 {
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   margin: 2px 0 0;
 }
 .switch-control input {
@@ -914,7 +915,7 @@ h2 {
   outline-offset: 4px;
 }
 #nature-status {
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   line-height: 1.6;
   margin: 15px 0 10px;
 }
@@ -922,7 +923,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 18px;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
 }
 .nature-credit a {
   text-underline-offset: 3px;
@@ -962,7 +963,7 @@ h2 {
     display: none;
   }
   .sidebar-actions #appearance {
-    font-size: 12px;
+    font-size: calc(var(--workspace-font-scale, 1) * 12px);
   }
   .side-bottom #mobile-lists {
     display: block;
@@ -1013,14 +1014,14 @@ dialog::backdrop {
 .dialog-kicker {
   display: block;
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   letter-spacing: 1px;
   margin-bottom: 15px;
   color: var(--accent);
 }
 .modal-heading h2 {
-  font-size: 45px;
+  font-size: calc(var(--workspace-font-scale, 1) * 45px);
   letter-spacing: -2px;
 }
 .modal-heading .icon-button {
@@ -1039,7 +1040,7 @@ dialog::backdrop {
 }
 .editor-writing > label {
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -1052,7 +1053,7 @@ dialog::backdrop {
   padding: 0 0 18px;
   margin-bottom: 25px;
   background: transparent;
-  font-size: 25px;
+  font-size: calc(var(--workspace-font-scale, 1) * 25px);
   letter-spacing: -0.6px;
 }
 .editor-writing > textarea {
@@ -1062,7 +1063,7 @@ dialog::backdrop {
   background: transparent;
   resize: vertical;
   min-height: 180px;
-  font-size: 16px;
+  font-size: calc(var(--workspace-font-scale, 1) * 16px);
   line-height: 1.7;
 }
 .editor-properties h3 {
@@ -1070,7 +1071,7 @@ dialog::backdrop {
 }
 label {
   display: block;
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   margin: 0 0 18px;
 }
 label input:not([type="checkbox"]):not([type="range"]):not([type="file"]),
@@ -1081,7 +1082,7 @@ label select {
   border: 1px solid var(--line);
   background: transparent;
   padding: 10px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   min-height: 42px;
 }
 select option {
@@ -1097,7 +1098,7 @@ select option {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .check input {
   margin: 0;
@@ -1105,7 +1106,7 @@ select option {
   height: 17px;
 }
 .hint {
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   line-height: 1.6;
   color: var(--muted);
   margin: 12px 0;
@@ -1126,11 +1127,11 @@ select option {
   background: none;
   border: 0;
   padding: 10px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .step-add button {
   width: 38px;
-  font-size: 23px;
+  font-size: calc(var(--workspace-font-scale, 1) * 23px);
   border-left: 1px solid var(--line);
 }
 .step-row {
@@ -1139,7 +1140,7 @@ select option {
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid var(--soft-line);
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .step-row span {
   flex: 1;
@@ -1172,7 +1173,7 @@ select option {
 }
 .danger,
 .text-button {
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   padding: 8px 0;
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -1200,19 +1201,19 @@ select option {
 }
 #note-bg-preview > span {
   font:
-    11px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 11px) ui-monospace,
     monospace;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 16px;
 }
 #note-preview-title {
-  font-size: 20px;
+  font-size: calc(var(--workspace-font-scale, 1) * 20px);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 #note-preview-body {
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   margin: 8px 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1251,7 +1252,7 @@ select option {
   min-height: 42px;
   border: 1px solid var(--line);
   padding: 10px 12px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
   cursor: pointer;
   margin: 0;
 }
@@ -1278,16 +1279,22 @@ select option {
   gap: 8px;
 }
 .image-control button {
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   padding: 4px 0;
   text-decoration: underline;
 }
 #note-bg-status {
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   line-height: 1.5;
 }
 #settings {
   max-width: 780px;
+}
+#settings > .modal-heading {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  background: var(--paper);
 }
 .settings-body {
   padding: 0 32px;
@@ -1319,7 +1326,7 @@ select option {
   border: 1px solid var(--line);
   min-height: 40px;
   padding: 8px 14px;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 .choices .selected {
   background: var(--ink);
@@ -1339,7 +1346,7 @@ select option {
   margin: 16px 0 12px;
 }
 #bg-preview span {
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   background: var(--paper);
   color: var(--ink);
   padding: 4px 7px;
@@ -1374,7 +1381,7 @@ input[type="range"] {
   gap: 18px;
 }
 .settings-footer > span {
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   color: var(--muted);
 }
 #list-dialog {
@@ -1399,10 +1406,24 @@ input[type="range"] {
   max-width: calc(100% - 30px);
   transform: translate(-50%, 160%);
   transition: transform 150ms ease;
-  font-size: 14px;
+  font-size: calc(var(--workspace-font-scale, 1) * 14px);
 }
 #toast.show {
   transform: translate(-50%, 0);
+}
+#toast.has-undo {
+  top: max(25px, env(safe-area-inset-top));
+  bottom: auto;
+  transform: translate(-50%, 0);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 150ms ease,
+    visibility 150ms ease;
+}
+#toast.has-undo.show {
+  opacity: 1;
+  visibility: visible;
 }
 #undo {
   color: var(--paper);
@@ -1507,7 +1528,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     padding-bottom: 28px;
   }
   h1 {
-    font-size: 64px;
+    font-size: calc(var(--workspace-font-scale, 1) * 64px);
   }
   .editor-grid {
     grid-template-columns: 1fr 1fr;
@@ -1532,12 +1553,12 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     overflow: visible;
   }
   .logo {
-    font-size: 26px;
+    font-size: calc(var(--workspace-font-scale, 1) * 26px);
     line-height: 1;
     width: max-content;
   }
   .brand-icon {
-    font-size: 28px;
+    font-size: calc(var(--workspace-font-scale, 1) * 28px);
   }
   .account,
   .nav-label,
@@ -1554,7 +1575,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     margin: 0;
   }
   .sidebar-search input {
-    font-size: 13px;
+    font-size: calc(var(--workspace-font-scale, 1) * 13px);
     padding: 6px 20px 6px 0;
   }
   .sidebar-search > span {
@@ -1573,7 +1594,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
   }
   nav button > span:nth-child(2) {
     flex: none;
-    font-size: 12px;
+    font-size: calc(var(--workspace-font-scale, 1) * 12px);
   }
   nav button b {
     display: none;
@@ -1602,7 +1623,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
   #mobile-lists {
     display: block;
     background: var(--paper);
-    font-size: 12px;
+    font-size: calc(var(--workspace-font-scale, 1) * 12px);
     padding: 4px;
     border: 1px solid var(--line);
     max-width: 115px;
@@ -1617,16 +1638,16 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     margin-bottom: 25px;
   }
   h1 {
-    font-size: 51px;
+    font-size: calc(var(--workspace-font-scale, 1) * 51px);
     letter-spacing: -2.8px;
   }
   .eyebrow {
-    font-size: 11px;
+    font-size: calc(var(--workspace-font-scale, 1) * 11px);
     max-width: 175px;
     line-height: 1.6;
   }
   .welcome .primary {
-    font-size: 13px;
+    font-size: calc(var(--workspace-font-scale, 1) * 13px);
     padding: 9px 10px;
     min-height: 39px;
     margin-top: 34px;
@@ -1640,7 +1661,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     gap: 4px;
   }
   .task-controls select {
-    font-size: 12px;
+    font-size: calc(var(--workspace-font-scale, 1) * 12px);
     max-width: 95px;
   }
   .task-toolbar {
@@ -1650,7 +1671,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     gap: 14px;
   }
   .filter-tabs button {
-    font-size: 13px;
+    font-size: calc(var(--workspace-font-scale, 1) * 13px);
   }
   #quick-task {
     padding: 17px 13px;
@@ -1663,7 +1684,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     padding: 18px 0;
   }
   .task-title {
-    font-size: 15px;
+    font-size: calc(var(--workspace-font-scale, 1) * 15px);
   }
   .drag-handle {
     width: 11px;
@@ -1683,7 +1704,7 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     padding: 21px 20px 12px;
   }
   h2 {
-    font-size: 32px;
+    font-size: calc(var(--workspace-font-scale, 1) * 32px);
   }
   .section-heading {
     margin-bottom: 20px;
@@ -1697,10 +1718,10 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
     padding: 24px 20px;
   }
   .modal-heading h2 {
-    font-size: 38px;
+    font-size: calc(var(--workspace-font-scale, 1) * 38px);
   }
   .dialog-kicker {
-    font-size: 11px;
+    font-size: calc(var(--workspace-font-scale, 1) * 11px);
     margin-bottom: 12px;
   }
   .editor-grid {
@@ -1727,10 +1748,10 @@ body[data-bg="sand"]:not(.custom-bg) .welcome .primary {
   }
   .modal-actions .primary {
     white-space: nowrap;
-    font-size: 13px;
+    font-size: calc(var(--workspace-font-scale, 1) * 13px);
   }
   .modal-actions .subtle {
-    font-size: 12px;
+    font-size: calc(var(--workspace-font-scale, 1) * 12px);
     padding: 7px;
   }
   .settings-body {
@@ -1895,7 +1916,7 @@ label input[type="color"] {
 output {
   float: right;
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
 }
 .background-controls {
@@ -1948,7 +1969,7 @@ select:focus-visible {
   outline-offset: 3px;
 }
 #clear-completed {
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   white-space: nowrap;
 }
 .modal-actions > div {
@@ -1969,7 +1990,7 @@ select:focus-visible {
     gap: 10px;
   }
   #duplicate-item {
-    font-size: 13px;
+    font-size: calc(var(--workspace-font-scale, 1) * 13px);
   }
 }
 
@@ -2016,7 +2037,7 @@ dialog {
   padding: 10px 37px 10px 36px;
   border: 1px solid var(--line);
   background: var(--paper);
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
   border-radius: var(--control-radius);
 }
 .sidebar-search > .search-icon {
@@ -2035,7 +2056,7 @@ dialog {
   top: 13px;
   right: 12px;
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
   opacity: 0.6;
 }
@@ -2058,7 +2079,7 @@ dialog {
 }
 #search-status {
   position: static;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   padding: 8px 4px 0;
 }
 .color-palette {
@@ -2096,7 +2117,7 @@ dialog {
   border: 1px solid var(--line);
   border-radius: var(--control-radius);
   text-align: left;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   align-items: stretch;
 }
 .background-templates button.selected {
@@ -2158,7 +2179,7 @@ dialog {
   .sidebar-search input {
     min-height: 36px;
     padding: 7px 31px 7px 30px;
-    font-size: 12px;
+    font-size: calc(var(--workspace-font-scale, 1) * 12px);
   }
   .sidebar-search > .search-icon {
     top: 10px;
@@ -2248,12 +2269,12 @@ aside .side-bottom {
 }
 .schedule-heading h2 {
   font:
-    500 19px "Google Sans",
+    500 calc(var(--workspace-font-scale, 1) * 19px) "Google Sans",
     sans-serif;
   letter-spacing: -0.4px;
 }
 .schedule-heading .text-button {
-  font-size: 13px;
+  font-size: calc(var(--workspace-font-scale, 1) * 13px);
 }
 .schedule-row {
   display: flex;
@@ -2265,7 +2286,7 @@ aside .side-bottom {
 .schedule-date {
   width: 75px;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
 }
 .schedule-task {
   flex: 1;
@@ -2276,15 +2297,15 @@ aside .side-bottom {
   gap: 4px;
   padding: 0;
   text-align: left;
-  font-size: 15px;
+  font-size: calc(var(--workspace-font-scale, 1) * 15px);
   overflow-wrap: anywhere;
 }
 .schedule-task small {
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   opacity: 0.75;
 }
 .schedule-row .subtle {
-  font-size: 12px;
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
   white-space: nowrap;
 }
 .subtle:disabled {
@@ -2303,13 +2324,13 @@ aside .side-bottom {
 }
 .planned-group-heading h2 {
   font:
-    500 24px "Google Sans",
+    500 calc(var(--workspace-font-scale, 1) * 24px) "Google Sans",
     sans-serif;
   letter-spacing: -0.6px;
 }
 .planned-group-heading > span {
   font:
-    12px ui-monospace,
+    calc(var(--workspace-font-scale, 1) * 12px) ui-monospace,
     monospace;
 }
 .custom-bg .planned-group-heading {
@@ -2381,7 +2402,7 @@ body[data-hover="none"] .icon-button:hover {
     align-items: flex-start;
   }
   .schedule-heading h2 {
-    font-size: 18px;
+    font-size: calc(var(--workspace-font-scale, 1) * 18px);
   }
   .schedule-row {
     gap: 10px;
@@ -2389,10 +2410,10 @@ body[data-hover="none"] .icon-button:hover {
   }
   .schedule-date {
     width: 58px;
-    font-size: 11px;
+    font-size: calc(var(--workspace-font-scale, 1) * 11px);
   }
   .schedule-task {
-    font-size: 14px;
+    font-size: calc(var(--workspace-font-scale, 1) * 14px);
     min-width: 110px;
   }
   .schedule-row .subtle {

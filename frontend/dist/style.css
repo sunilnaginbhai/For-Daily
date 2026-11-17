@@ -203,10 +203,27 @@ nav button.active svg {
   letter-spacing: 1px;
   margin-bottom: 9px;
 }
-.nav-label button {
-  width: 26px;
-  height: 26px;
-  font-size: calc(var(--workspace-font-scale, 1) * 23px);
+.sidebar-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sidebar-quick-actions button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--muted);
+}
+.sidebar-quick-actions button:hover {
+  border-color: color-mix(in srgb, var(--ink) 10%, transparent);
+  background: color-mix(in srgb, var(--secondary) 58%, transparent);
+  color: var(--ink);
+}
+.sidebar-quick-actions svg {
+  width: 17px;
+  height: 17px;
 }
 #list-nav {
   padding-bottom: 25px;
@@ -2512,8 +2529,22 @@ body[data-hover="none"] #list-nav button:not(.active):hover {
 
 nav button.active,
 #list-nav button.active {
-  border-color: color-mix(in srgb, var(--accent) 15%, transparent);
-  box-shadow: inset 3px 0 var(--accent);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--secondary) 62%, var(--paper));
+  box-shadow: none;
+  color: var(--ink);
+  font-weight: 600;
+}
+nav button.active svg {
+  color: currentColor;
+}
+body.email-open nav button.active:not(#email-nav),
+body.email-open #list-nav button.active {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sidebar-ink, var(--ink));
+  font-weight: 400;
 }
 
 .content {
@@ -2665,10 +2696,10 @@ body[data-hover="lift"]:not(.motion-off) .primary:hover {
   opacity: 0.76;
 }
 
-#quick-task input:focus-visible,
-.sidebar-search input:focus-visible,
-.editor-writing input:focus-visible,
-.editor-writing textarea:focus-visible {
+.keyboard-focus #quick-task input:focus-visible,
+.keyboard-focus .sidebar-search input:focus-visible,
+.keyboard-focus .editor-writing input:focus-visible,
+.keyboard-focus .editor-writing textarea:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
   outline-offset: 3px;
 }
@@ -2925,13 +2956,6 @@ label select,
 .step-add {
   border-color: var(--border-soft);
   background-color: color-mix(in srgb, var(--paper) 84%, transparent);
-}
-
-label input:not([type="checkbox"]):not([type="range"]):not([type="file"]):focus,
-label select:focus,
-.step-add:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 62%, var(--border-soft));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 11%, transparent);
 }
 
 .settings-section {

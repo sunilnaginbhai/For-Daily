@@ -729,6 +729,7 @@ $("#board").addEventListener("dragend", () => {
   dragging = null;
 });
 $("#new-task").onclick = () => openEditor("task");
+$("#sidebar-add-task").onclick = () => openEditor("task");
 $("#new-note").onclick = $("#note-capture").onclick = () => openEditor("note");
 $("#search").oninput = (e) => {
   query = e.target.value.toLowerCase();

@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  completeDesktopGmailAuth,
   disconnectGmail,
   downloadGmailAttachment,
   getGmailLabels,
@@ -641,6 +642,38 @@ function EmailDashboard({ isActive, onClose }) {
   );
 
   useEffect(() => {
+    const desktop = window.workspaceDesktop;
+    if (!desktop?.onGmailAuthComplete) return undefined;
+
+    return desktop.onGmailAuthComplete(async (result) => {
+      if (result.error) {
+        const messages = {
+          access_denied: "Google denied Gmail access. You can try connecting again.",
+          missing_refresh_token:
+            "Google did not issue a refresh token. Revoke this app's access, then reconnect.",
+          timeout: "Gmail authorization expired. Try connecting again.",
+        };
+        setGmailError(
+          messages[result.error] || "Gmail authorization failed. Try connecting again.",
+        );
+        return;
+      }
+
+      try {
+        await completeDesktopGmailAuth(result.ticket, result.challenge);
+        void desktop
+          .showNotification("Gmail connected", "Your Gmail inbox is ready.")
+          .catch((error) => {
+            console.error(`Could not show the Gmail notification: ${error.message}`);
+          });
+        window.location.assign("/?email=1&gmail=connected");
+      } catch (error) {
+        setGmailError(error.message);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     if (!isActive) return undefined;
 
     let active = true;
@@ -687,7 +720,12 @@ function EmailDashboard({ isActive, onClose }) {
             const labels = await labelsRequestRef.current;
             if (active) setGmailLabels(labels);
           } catch (error) {
-            if (active) setGmailError(error.message);
+            if (active) {
+              setGmailError(error.message);
+              if (error.status === 429) {
+                setRateLimitWait(error.retryAfterSeconds || 30);
+              }
+            }
           }
         } else if (active) {
           setEmails(initialEmails);
@@ -720,6 +758,10 @@ function EmailDashboard({ isActive, onClose }) {
 
   useEffect(() => {
     if (!isActive || !gmailStatus.connected) return undefined;
+    if (rateLimitWait > 0) {
+      setPageLoading(false);
+      return undefined;
+    }
 
     const tokens = getPageTokens(gmailQueryKey);
     const pageToken = tokens[pageIndex];
@@ -741,16 +783,10 @@ function EmailDashboard({ isActive, onClose }) {
         });
         setEmails((current) =>
           infiniteScroll
-            ? [
-                ...new Map(
-                  [...current, ...page.messages].map((email) => [
-                    email.id,
-                    email,
-                  ]),
-                ).values(),
-              ]
+            ? mergeEmailLists(current, page.messages)
             : page.messages,
         );
+        setGmailError("");
       })
       .catch((error) => {
         if (!active) return;
@@ -775,6 +811,7 @@ function EmailDashboard({ isActive, onClose }) {
     isActive,
     loadGmailPage,
     pageIndex,
+    rateLimitWait,
   ]);
 
   useEffect(() => {
@@ -930,9 +967,11 @@ function EmailDashboard({ isActive, onClose }) {
         try {
           pageCacheRef.current.clear();
           await reloadActiveGmailPage(true);
+          setGmailError(error.message);
         } catch (refreshError) {
-          reportGmailPageError(
-            new Error(`${error.message} Page refresh failed: ${refreshError.message}`),
+          reportGmailPageError(refreshError);
+          setGmailError(
+            `${error.message} Page refresh failed: ${refreshError.message}`,
           );
         }
       }
@@ -1006,6 +1045,21 @@ function EmailDashboard({ isActive, onClose }) {
 
   const handleGmailAction = async () => {
     if (!gmailStatus.connected) {
+      if (window.workspaceDesktop?.isDesktop) {
+        if (!gmailStatus.configured) {
+          setGmailError(
+            "Configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the app's .env file before connecting Gmail.",
+          );
+          return;
+        }
+        setGmailError("");
+        try {
+          await window.workspaceDesktop.connectGmail();
+        } catch (error) {
+          setGmailError(error.message);
+        }
+        return;
+      }
       window.location.assign("/auth/google");
       return;
     }
@@ -1151,7 +1205,9 @@ function EmailDashboard({ isActive, onClose }) {
             <button
               className="email-refresh"
               onClick={refreshInbox}
-              disabled={refreshing}
+              disabled={
+                refreshing || (gmailStatus.connected && rateLimitWait > 0)
+              }
             >
               <RefreshCw size={16} className={refreshing ? "is-spinning" : ""} />
               Refresh
@@ -1620,6 +1676,7 @@ function EmailDashboard({ isActive, onClose }) {
                         setDateFilter("Any time");
                       }
                     }}
+                    disabled={rateLimitWait > 0}
                   >
                     {pageError
                       ? rateLimitWait > 0
@@ -1920,6 +1977,28 @@ function EmailDetailDrawer({
   const [sendingReply, setSendingReply] = useState(false);
   const [replyError, setReplyError] = useState("");
   const [sentReplies, setSentReplies] = useState([]);
+  const [externalImagesEnabled, setExternalImagesEnabled] = useState(false);
+  const hasExternalImages = Boolean(
+    email.htmlBody?.includes("data-external-src="),
+  );
+  const renderedHtmlBody = useMemo(() => {
+    if (!email.htmlBody || !externalImagesEnabled || !hasExternalImages) {
+      return email.htmlBody || "";
+    }
+
+    const parsed = new DOMParser().parseFromString(
+      email.htmlBody,
+      "text/html",
+    );
+    parsed.querySelectorAll("img[data-external-src]").forEach((image) => {
+      const source = image.getAttribute("data-external-src");
+      if (/^https?:\/\//i.test(source || "")) {
+        image.setAttribute("src", source);
+      }
+      image.removeAttribute("data-external-src");
+    });
+    return parsed.body.innerHTML;
+  }, [email.htmlBody, externalImagesEnabled, hasExternalImages]);
 
   const handleReplyClick = () => {
     if (!gmailConnected) {
@@ -2031,8 +2110,32 @@ function EmailDetailDrawer({
                   <time>{formatTime(email.timestamp)}</time>
                 </div>
                 <div className="drawer-message-bubble">
-                  {email.body.map((paragraph, index) =>
-                    paragraph ? <p key={index}>{paragraph}</p> : <br key={index} />,
+                  {email.htmlBody ? (
+                    <>
+                      {hasExternalImages && !externalImagesEnabled && (
+                        <div className="drawer-external-images">
+                          <span>External images are hidden for privacy.</span>
+                          <button
+                            type="button"
+                            onClick={() => setExternalImagesEnabled(true)}
+                          >
+                            Load images
+                          </button>
+                        </div>
+                      )}
+                      <div
+                        className="drawer-html-body"
+                        dangerouslySetInnerHTML={{ __html: renderedHtmlBody }}
+                      />
+                    </>
+                  ) : (
+                    email.body.map((paragraph, index) =>
+                      paragraph ? (
+                        <p key={index}>{paragraph}</p>
+                      ) : (
+                        <br key={index} />
+                      ),
+                    )
                   )}
                 </div>
               </article>

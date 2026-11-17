@@ -1,21 +1,71 @@
 {
   "name": "workspace-tasks-notes",
+  "productName": "Workspace",
   "version": "1.0.0",
   "private": true,
+  "description": "Workspace for tasks, notes, and Gmail",
+  "author": "Workspace",
   "type": "module",
+  "main": "electron/main.js",
   "workspaces": [
     "frontend",
     "backend"
   ],
   "scripts": {
-    "dev": "npm run dev:frontend",
+    "dev": "npm run dev:full",
     "dev:frontend": "npm run dev --workspace frontend",
     "dev:backend": "npm run dev --workspace backend",
     "dev:full": "concurrently -k -n api,web \"npm:dev:backend\" \"npm:dev:frontend\"",
     "build": "npm run build --workspace frontend",
-    "preview": "npm run preview --workspace frontend"
+    "preview": "npm run preview --workspace frontend",
+    "electron:install": "install-electron",
+    "desktop:dev": "npm run electron:install && concurrently -k -n web,desktop \"npm:dev:frontend\" \"wait-on http://localhost:5173 && electron .\"",
+    "desktop:build": "npm run build && electron-builder --win nsis",
+    "desktop:dir": "npm run build && electron-builder --dir"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "googleapis": "^190.0.0",
+    "sanitize-html": "^2.18.2"
   },
   "devDependencies": {
-    "concurrently": "^10.0.7"
+    "concurrently": "^10.0.7",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
+    "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "com.workspace.tasksnotes",
+    "productName": "Workspace",
+    "directories": {
+      "output": "release",
+      "buildResources": "electron/assets"
+    },
+    "files": [
+      "electron/**/*",
+      "backend/**/*",
+      "build/**/*",
+      ".env.example",
+      "package.json",
+      "!backend/**/*.test.js"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "electron/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Workspace"
+    }
   }
 }

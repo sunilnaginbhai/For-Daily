@@ -1856,6 +1856,48 @@ body.email-open main:not(.email-dashboard) {
   white-space: pre-wrap;
 }
 
+.drawer-html-body {
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.drawer-html-body table {
+  max-width: 100% !important;
+  border-collapse: collapse;
+}
+
+.drawer-html-body img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
+.drawer-html-body a {
+  overflow-wrap: anywhere;
+}
+
+.drawer-external-images {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--soft-line);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: calc(var(--workspace-font-scale, 1) * 12px);
+}
+
+.drawer-external-images button {
+  flex: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .drawer-message-bubble p {
   margin: 0 0 13px;
 }
@@ -1951,7 +1993,7 @@ body.email-open main:not(.email-dashboard) {
   resize: vertical;
 }
 
-.drawer-reply-composer textarea:focus-visible {
+.keyboard-focus .drawer-reply-composer textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -2496,12 +2538,6 @@ body.email-open main:not(.email-dashboard) {
   box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 3%, transparent);
 }
 
-.email-search:focus-within,
-.email-select-wrap:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-soft));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
 .email-connect-button,
 .email-compose-button {
   border-color: var(--accent);
@@ -2597,28 +2633,31 @@ body[data-hover="lift"]:not(.motion-off) .email-kpi-card:hover {
 }
 
 .email-card:hover {
-  box-shadow: inset 3px 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+  box-shadow: none;
 }
 
 .email-card.unread {
-  box-shadow: inset 3px 0 var(--accent);
+  background: color-mix(in srgb, var(--ink) 2%, var(--paper));
+  box-shadow: none;
 }
 
 .email-card.unread:hover {
-  background: color-mix(in srgb, var(--accent) 7%, var(--paper));
+  background: color-mix(in srgb, var(--ink) 5%, var(--paper));
 }
 
 body[data-hover="none"] .email-card:hover {
-  background: transparent;
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper));
   box-shadow: none;
 }
 
 body[data-hover="none"] .email-card.unread {
-  box-shadow: inset 3px 0 var(--accent);
+  background: color-mix(in srgb, var(--ink) 2%, var(--paper));
+  box-shadow: none;
 }
 
 body[data-hover="none"] .email-card.unread:hover {
-  background: color-mix(in srgb, var(--accent) 2%, var(--paper));
+  background: color-mix(in srgb, var(--ink) 2%, var(--paper));
 }
 
 .email-drawer-backdrop {

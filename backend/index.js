@@ -10,35 +10,50 @@ import {
   parseGmailMessageListQuery,
   uniqueGmailMessageIds,
 } from "./gmail-pagination.js";
+import {
+  getGmailAttachments,
+  getGmailHeader,
+  getGmailMessageContent,
+  messageParts,
+} from "./gmail-content.js";
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectDirectory = path.resolve(serverDirectory, "..");
 const envPaths = [
+  process.env.APP_ENV_PATH,
   path.join(projectDirectory, ".env"),
   path.resolve(projectDirectory, "..", ".env"),
-];
+].filter(Boolean);
 dotenv.config({ path: envPaths.find(existsSync) || envPaths[0] });
 
 const app = express();
 app.use(express.json({ limit: "48kb" }));
 const port = Number(process.env.PORT || 3001);
 const appOrigin = new URL(process.env.APP_ORIGIN || "http://localhost:5173").origin;
+const desktopProtocol = process.env.DESKTOP_PROTOCOL || "workspace";
 const redirectUri =
   process.env.GOOGLE_REDIRECT_URI ||
   `http://localhost:${port}/auth/google/callback`;
 const isProduction = process.env.NODE_ENV === "production";
+const isDesktopApp = process.env.DESKTOP_APP === "1";
+const frontendBuildDirectory = path.join(projectDirectory, "build");
 const googleCredentialsConfigured =
   Boolean(process.env.GOOGLE_CLIENT_ID) &&
   Boolean(process.env.GOOGLE_CLIENT_SECRET);
 const sessionSecret =
   process.env.SESSION_SECRET ||
-  (!isProduction ? crypto.randomBytes(32).toString("hex") : "");
+  (!isProduction || isDesktopApp
+    ? crypto.randomBytes(32).toString("hex")
+    : "");
+const desktopOAuthStates = new Map();
+const desktopOAuthTickets = new Map();
+const desktopOAuthLifetimeMs = 5 * 60 * 1000;
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT must be an integer between 1 and 65535.");
 }
 
-if (isProduction) {
+if (isProduction && !isDesktopApp) {
   throw new Error(
     "This local backend uses in-memory sessions. Configure a persistent session store before production deployment.",
   );
@@ -128,10 +143,18 @@ function matchesOAuthState(received, expected) {
   return crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected));
 }
 
-function getHeader(payload, name) {
-  return payload?.headers?.find(
-    (header) => header.name?.toLowerCase() === name.toLowerCase(),
-  )?.value || "";
+function removeExpiredEntries(entries) {
+  const now = Date.now();
+  for (const [key, value] of entries) {
+    if (value.expiresAt <= now) entries.delete(key);
+  }
+}
+
+function desktopOAuthCallback(challenge, values = {}) {
+  const params = new URLSearchParams({ challenge });
+  if (values.ticket) params.set("ticket", values.ticket);
+  if (values.error) params.set("error", values.error);
+  return `${desktopProtocol}://auth/callback?${params}`;
 }
 
 function parseSender(rawFrom) {
@@ -151,21 +174,21 @@ function getRfcMessageIds(value) {
 function createReplyRawMessage(original, body) {
   const payload = original.payload;
   const rawRecipient =
-    getHeader(payload, "Reply-To") || getHeader(payload, "From");
+    getGmailHeader(payload, "Reply-To") || getGmailHeader(payload, "From");
   const { address } = parseSender(rawRecipient);
   if (!/^[^\s<>@,;]+@[^\s<>@,;]+$/.test(address)) {
     throw new HttpError(400, "The original message has no valid reply address.");
   }
 
-  const originalSubject = getHeader(payload, "Subject")
+  const originalSubject = getGmailHeader(payload, "Subject")
     .replace(/[\r\n]/g, " ")
     .trim();
   const replySubject = /^re\s*:/i.test(originalSubject)
     ? originalSubject
     : `Re: ${originalSubject || "(No subject)"}`;
-  const messageId = getRfcMessageIds(getHeader(payload, "Message-ID"))[0];
+  const messageId = getRfcMessageIds(getGmailHeader(payload, "Message-ID"))[0];
   const references = [
-    ...getRfcMessageIds(getHeader(payload, "References")),
+    ...getRfcMessageIds(getGmailHeader(payload, "References")),
     ...(messageId ? [messageId] : []),
   ]
     .slice(-8)
@@ -193,47 +216,14 @@ function createReplyRawMessage(original, body) {
     .replace(/=+$/g, "");
 }
 
-function decodeMessagePart(data) {
-  return Buffer.from(
-    data.replace(/-/g, "+").replace(/_/g, "/"),
-    "base64",
-  ).toString("utf8");
-}
-
-function messageParts(payload, visit) {
-  if (!payload) return;
-  visit(payload);
-  payload.parts?.forEach((part) => messageParts(part, visit));
-}
-
-function getPlainText(payload) {
-  const contents = [];
-  messageParts(payload, (part) => {
-    if (part.mimeType === "text/plain" && part.body?.data) {
-      contents.push(decodeMessagePart(part.body.data));
-    }
-  });
-  return contents.join("\n\n").slice(0, 12000);
-}
-
-function getAttachments(payload) {
-  const attachments = [];
-  messageParts(payload, (part) => {
-    if (part.filename && part.body?.attachmentId) {
-      attachments.push({
-        id: part.body.attachmentId,
-        name: part.filename,
-        mimeType: part.mimeType || "application/octet-stream",
-      });
-    }
-  });
-  return attachments;
-}
-
 function toEmail(message) {
   const payload = message.payload;
-  const { sender, address } = parseSender(getHeader(payload, "From"));
-  const text = getPlainText(payload);
+  const { sender, address } = parseSender(getGmailHeader(payload, "From"));
+  const { plainText, htmlBody, inlineImages } = getGmailMessageContent(
+    payload,
+    message.id,
+  );
+  const text = plainText;
   const bodyText = text || message.snippet || "";
   const labels = new Set(message.labelIds || []);
   const date = Number(message.internalDate);
@@ -266,7 +256,7 @@ function toEmail(message) {
       .join("")
       .toUpperCase(),
     color: palette[colorIndex],
-    subject: getHeader(payload, "Subject") || "(No subject)",
+    subject: getGmailHeader(payload, "Subject") || "(No subject)",
     summary: message.snippet || bodyText.slice(0, 180) || "No preview available.",
     timestamp,
     unread: labels.has("UNREAD"),
@@ -278,7 +268,9 @@ function toEmail(message) {
     body: bodyText
       ? bodyText.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean)
       : ["No message body available."],
-    attachments: getAttachments(payload),
+    htmlBody,
+    inlineImages,
+    attachments: getGmailAttachments(payload, inlineImages),
     insights: [],
     source: "gmail",
   };
@@ -346,13 +338,59 @@ app.get(
   }),
 );
 
+app.post(
+  "/api/auth/desktop/complete",
+  asyncRoute(async (req, res) => {
+    if (!isDesktopApp) {
+      throw new HttpError(404, "Desktop Gmail authorization is not available.");
+    }
+
+    const { ticket, challenge } = req.body || {};
+    if (
+      typeof ticket !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(ticket) ||
+      typeof challenge !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(challenge)
+    ) {
+      throw new HttpError(400, "The desktop authorization response was invalid.");
+    }
+
+    removeExpiredEntries(desktopOAuthTickets);
+    const pending = desktopOAuthTickets.get(ticket);
+    if (!pending || !matchesOAuthState(challenge, pending.challenge)) {
+      throw new HttpError(401, "The desktop authorization expired. Try connecting again.");
+    }
+
+    desktopOAuthTickets.delete(ticket);
+    await regenerateSession(req);
+    req.session.gmailTokens = pending.tokens;
+    await saveSession(req);
+    res.json({ connected: true });
+  }),
+);
+
 app.get(
   "/auth/google",
   asyncRoute(async (req, res) => {
     const oauth = createOAuthClient();
     const state = crypto.randomBytes(32).toString("hex");
-    req.session.oauthState = state;
-    await saveSession(req);
+    if (req.query.desktop === "1") {
+      if (!isDesktopApp) {
+        throw new HttpError(404, "Desktop Gmail authorization is not available.");
+      }
+      const challenge = req.query.challenge;
+      if (typeof challenge !== "string" || !/^[a-f0-9]{64}$/i.test(challenge)) {
+        throw new HttpError(400, "The desktop authorization request was invalid.");
+      }
+      removeExpiredEntries(desktopOAuthStates);
+      desktopOAuthStates.set(state, {
+        challenge,
+        expiresAt: Date.now() + desktopOAuthLifetimeMs,
+      });
+    } else {
+      req.session.oauthState = state;
+      await saveSession(req);
+    }
 
     const url = oauth.generateAuthUrl({
       access_type: "offline",
@@ -368,13 +406,27 @@ app.get(
 app.get(
   "/auth/google/callback",
   asyncRoute(async (req, res) => {
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    removeExpiredEntries(desktopOAuthStates);
+    const desktopFlow = desktopOAuthStates.get(state);
+    if (desktopFlow) desktopOAuthStates.delete(state);
+
     if (req.query.error) {
+      if (desktopFlow) {
+        return res.redirect(
+          desktopOAuthCallback(desktopFlow.challenge, {
+            error: "access_denied",
+          }),
+        );
+      }
       return res.redirect(`${appOrigin}/?email=1&gmail_error=access_denied`);
     }
 
-    const state = req.query.state;
     const code = req.query.code;
-    if (!matchesOAuthState(state, req.session.oauthState)) {
+    if (
+      !desktopFlow &&
+      !matchesOAuthState(state, req.session.oauthState)
+    ) {
       throw new HttpError(400, "The Google OAuth state did not match. Try connecting again.");
     }
     if (typeof code !== "string") {
@@ -387,10 +439,37 @@ app.get(
       ({ tokens } = await oauth.getToken(code));
     } catch (error) {
       console.error(`Google OAuth token exchange failed: ${error.message}`);
+      if (desktopFlow) {
+        return res.redirect(
+          desktopOAuthCallback(desktopFlow.challenge, {
+            error: "oauth_failed",
+          }),
+        );
+      }
       return res.redirect(`${appOrigin}/?email=1&gmail_error=oauth_failed`);
     }
     if (!tokens.refresh_token) {
+      if (desktopFlow) {
+        return res.redirect(
+          desktopOAuthCallback(desktopFlow.challenge, {
+            error: "missing_refresh_token",
+          }),
+        );
+      }
       return res.redirect(`${appOrigin}/?email=1&gmail_error=missing_refresh_token`);
+    }
+
+    if (desktopFlow) {
+      removeExpiredEntries(desktopOAuthTickets);
+      const ticket = crypto.randomBytes(32).toString("hex");
+      desktopOAuthTickets.set(ticket, {
+        challenge: desktopFlow.challenge,
+        tokens,
+        expiresAt: Date.now() + desktopOAuthLifetimeMs,
+      });
+      return res.redirect(
+        desktopOAuthCallback(desktopFlow.challenge, { ticket }),
+      );
     }
 
     await regenerateSession(req);
@@ -592,6 +671,7 @@ app.get(
   asyncRoute(async (req, res) => {
     try {
       const gmail = gmailForRequest(req);
+      const inline = req.query.inline === "1";
       const message = await gmail.users.messages.get({
         userId: "me",
         id: req.params.messageId,
@@ -603,7 +683,21 @@ app.get(
           attachmentPart = part;
         }
       });
-      if (!attachmentPart?.filename) {
+      const mimeType =
+        attachmentPart?.mimeType?.toLowerCase() || "application/octet-stream";
+      const inlineImageTypes = new Set([
+        "image/avif",
+        "image/bmp",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ]);
+      if (
+        !attachmentPart ||
+        (inline && !inlineImageTypes.has(mimeType)) ||
+        (!inline && !attachmentPart.filename)
+      ) {
         throw new HttpError(404, "The Gmail attachment was not found.");
       }
 
@@ -621,18 +715,30 @@ app.get(
         data.replace(/-/g, "+").replace(/_/g, "/"),
         "base64",
       );
-      const filename = attachmentPart.filename.replace(/[^\x20-\x7E]|[\\/"\r\n]/g, "_");
-      const encodedFilename = encodeURIComponent(attachmentPart.filename).replace(
+      const originalFilename = attachmentPart.filename || "inline-image";
+      const filename = originalFilename.replace(/[^\x20-\x7E]|[\\/"\r\n]/g, "_");
+      const encodedFilename = encodeURIComponent(originalFilename).replace(
         /['()*]/g,
         (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
       );
-      res.setHeader("Content-Type", attachmentPart.mimeType || "application/octet-stream");
+      res.setHeader("Content-Type", mimeType);
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
+        `${inline ? "inline" : "attachment"}; filename="${filename}"${
+          attachmentPart.filename ? `; filename*=UTF-8''${encodedFilename}` : ""
+        }`,
       );
       res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Cache-Control", "no-store");
+      res.setHeader(
+        "Cache-Control",
+        inline ? "private, max-age=3600" : "no-store",
+      );
+      if (inline) {
+        res.setHeader(
+          "Content-Security-Policy",
+          "default-src 'none'; sandbox",
+        );
+      }
       return res.send(bytes);
     } catch (error) {
       throw normalizeGoogleError(error);
@@ -643,6 +749,18 @@ app.get(
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "API endpoint not found." });
 });
+
+if (isDesktopApp && isProduction) {
+  app.use(express.static(frontendBuildDirectory, { index: false }));
+  app.get(/.*/, (req, res, next) => {
+    if (req.path.startsWith("/auth/")) {
+      return res.status(404).json({ error: "Authentication endpoint not found." });
+    }
+    res.sendFile(path.join(frontendBuildDirectory, "index.html"), (error) => {
+      if (error) next(error);
+    });
+  });
+}
 
 app.use((error, req, res, _next) => {
   const status = error.status || 500;
@@ -657,6 +775,17 @@ app.use((error, req, res, _next) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Gmail backend listening on http://localhost:${port}`);
-});
+export function startServer(host) {
+  const server = host
+    ? app.listen(port, host, () => {
+        console.log(`Gmail backend listening on http://localhost:${port}`);
+      })
+    : app.listen(port, () => {
+        console.log(`Gmail backend listening on http://localhost:${port}`);
+      });
+  return server;
+}
+
+if (!isDesktopApp) {
+  startServer();
+}

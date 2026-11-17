@@ -1,14 +1,26 @@
 async function request(path, options) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    ...options,
-  });
-  let payload;
-
+  let response;
   try {
-    payload = await response.json();
+    response = await fetch(path, {
+      credentials: "same-origin",
+      ...options,
+    });
   } catch {
-    throw new Error("The Gmail backend returned an invalid response.");
+    throw new Error(
+      "Cannot reach the Gmail backend. Start it with `npm run dev:full`, then retry.",
+    );
+  }
+
+  let payload;
+  const responseText = await response.text();
+  try {
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    const error = new Error(
+      `The Gmail backend returned a non-JSON response (HTTP ${response.status}). Make sure the backend is running with \`npm run dev:backend\`.`,
+    );
+    error.status = response.status;
+    throw error;
   }
 
   if (!response.ok) {
@@ -25,6 +37,14 @@ async function request(path, options) {
 
 export function getGmailStatus() {
   return request("/api/auth/status");
+}
+
+export function completeDesktopGmailAuth(ticket, challenge) {
+  return request("/api/auth/desktop/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticket, challenge }),
+  });
 }
 
 export function getGmailLabels() {

@@ -76,9 +76,13 @@ export default function App() {
 
   useEffect(() => {
     document.body.classList.toggle("email-open", emailOpen);
-    document
-      .querySelector("#email-nav")
-      ?.classList.toggle("active", emailOpen);
+    const emailButton = document.querySelector("#email-nav");
+    emailButton?.classList.toggle("active", emailOpen);
+    if (emailOpen) {
+      emailButton?.setAttribute("aria-current", "page");
+    } else {
+      emailButton?.removeAttribute("aria-current");
+    }
     return () => document.body.classList.remove("email-open");
   }, [emailOpen]);
 

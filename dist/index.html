@@ -106,6 +106,15 @@
             <span data-icon="plus"></span> New task
           </button>
         </section>
+        <section id="day-schedule" hidden aria-labelledby="schedule-heading">
+          <div class="schedule-heading">
+            <h2 id="schedule-heading">On your schedule</h2>
+            <button class="text-button" data-view="reminders">
+              View planned
+            </button>
+          </div>
+          <div id="day-schedule-items"></div>
+        </section>
         <section id="tasks-section">
           <div class="task-surface">
             <form id="quick-task">
@@ -378,6 +387,49 @@
                 step="2"
                 value="16"
             /></label>
+          </div>
+        </section>
+        <section class="settings-section">
+          <div>
+            <h3>Sidebar</h3>
+            <p class="hint">
+              Choose how the navigation relates to your background.
+            </p>
+          </div>
+          <div>
+            <label
+              >Sidebar theme<select id="sidebar-theme">
+                <option value="follow">Follow background</option>
+                <option value="paper">Paper</option>
+                <option value="ink">Ink</option>
+                <option value="secondary">Secondary color</option>
+              </select></label
+            >
+            <p class="hint">
+              Follow background includes your uploaded image with a tint for
+              readable text.
+            </p>
+          </div>
+        </section>
+        <section class="settings-section">
+          <div>
+            <h3>Motion & interaction</h3>
+            <p class="hint">Set how much movement you want.</p>
+          </div>
+          <div>
+            <label class="check"
+              ><input type="checkbox" id="animations-enabled" checked /> Enable
+              animations</label
+            ><label
+              >Hover effect<select id="hover-effect">
+                <option value="tint">Soft highlight</option>
+                <option value="lift">Subtle lift</option>
+                <option value="none">None</option>
+              </select></label
+            >
+            <p class="hint">
+              Your device's reduced-motion preference always takes priority.
+            </p>
           </div>
         </section>
         <section class="settings-section">

@@ -2048,3 +2048,220 @@ dialog {
     transform: none;
   }
 }
+
+/* The sidebar can share the wallpaper without placing text directly on it. */
+aside {
+  background: var(--sidebar-tone, var(--paper));
+  color: var(--sidebar-ink, var(--ink));
+  isolation: isolate;
+}
+aside::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--sidebar-image, none);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.16;
+  pointer-events: none;
+}
+aside .sidebar-search input,
+aside #search-status {
+  background: var(--sidebar-tone, var(--paper));
+  color: var(--sidebar-ink, var(--ink));
+}
+aside input::placeholder {
+  color: inherit;
+  opacity: 0.7;
+}
+aside .storage-status {
+  color: inherit;
+}
+aside .sidebar-search input,
+aside .sidebar-rule,
+aside .side-bottom {
+  border-color: color-mix(
+    in srgb,
+    var(--sidebar-ink, var(--ink)) 25%,
+    transparent
+  );
+}
+#day-schedule {
+  grid-column: 1/-1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 22px 24px;
+  margin-bottom: 32px;
+}
+.schedule-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 18px;
+}
+.schedule-heading h2 {
+  font:
+    500 19px "Google Sans",
+    sans-serif;
+  letter-spacing: -0.4px;
+}
+.schedule-heading .text-button {
+  font-size: 13px;
+}
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 0;
+  border-top: 1px solid var(--soft-line);
+}
+.schedule-date {
+  width: 75px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.schedule-task {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  text-align: left;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.schedule-task small {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.schedule-row .subtle {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.subtle:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.planned-group {
+  margin-bottom: 36px;
+}
+.planned-group-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0 20px;
+  color: var(--workspace-foreground, var(--ink));
+}
+.planned-group-heading h2 {
+  font:
+    500 24px "Google Sans",
+    sans-serif;
+  letter-spacing: -0.6px;
+}
+.planned-group-heading > span {
+  font:
+    12px ui-monospace,
+    monospace;
+}
+.custom-bg .planned-group-heading {
+  background: var(--paper);
+  color: var(--ink);
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 18px;
+}
+.planned-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.motion-off *,
+.motion-off *::before,
+.motion-off *::after {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+body[data-hover="lift"]:not(.motion-off) .primary:hover,
+body[data-hover="lift"]:not(.motion-off) .note:hover {
+  transform: translateY(-2px);
+}
+.primary,
+.note {
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+body[data-hover="none"] .primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+body[data-hover="none"] .subtle:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+body[data-hover="none"] nav button:not(.active):hover,
+body[data-hover="none"] #list-nav button:not(.active):hover {
+  background: transparent;
+  color: inherit;
+}
+body[data-hover="none"] #clear-search:hover {
+  background: transparent;
+  color: inherit;
+}
+body[data-hover="none"] .note:hover {
+  transform: none;
+  box-shadow: 0 3px 15px #20201e05;
+}
+body[data-hover="none"] .icon-button:hover {
+  color: inherit;
+}
+.motion-off .drag-preview {
+  transform: none;
+}
+@media (max-width: 680px) {
+  #day-schedule {
+    padding: 18px 16px;
+    margin-bottom: 24px;
+  }
+  .schedule-heading {
+    align-items: flex-start;
+  }
+  .schedule-heading h2 {
+    font-size: 18px;
+  }
+  .schedule-row {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .schedule-date {
+    width: 58px;
+    font-size: 11px;
+  }
+  .schedule-task {
+    font-size: 14px;
+    min-width: 110px;
+  }
+  .schedule-row .subtle {
+    padding: 7px 9px;
+    min-height: 34px;
+  }
+  .planned-actions {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-hover="lift"] .primary:hover,
+  body[data-hover="lift"] .note:hover {
+    transform: none;
+  }
+}

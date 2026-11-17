@@ -274,14 +274,7 @@ function render() {
   const planned = sorted(
     state.tasks.filter((t) => t.date && t.status !== "done" && matching(t)),
   ).sort((a, b) => new Date(a.date) - new Date(b.date));
-  $("#reminder-list").innerHTML = planned.length
-    ? planned
-        .map(
-          (t) =>
-            `<div class="planned-card">${taskCard(t)}<div class="planned-bottom"><span>${esc(new Date(t.date).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }))}</span><button class="subtle" data-calendar="${t.id}">${icon("calendar")} Add to calendar</button></div></div>`,
-        )
-        .join("")
-    : `<div class="empty-state">${icon("calendar")}<h3>No upcoming tasks</h3><p>Add a due date to a task to see it here.</p></div>`;
+  renderPlanned(planned);
   $(".content").dataset.layout = !query && view === "all" ? "split" : "single";
   $("#tasks-section").hidden = !query && ["notes", "reminders"].includes(view);
   $("#notes-section").hidden = !query && !["all", "notes"].includes(view);
@@ -1085,6 +1078,7 @@ function applyWorkspaceControls() {
   $("#bg-blur-value").textContent = blur + " px";
   $("#bg-overlay-value").textContent = overlay + "%";
   updatePresetSelection();
+  applyInteractionSettings();
 }
 for (const [id, key] of Object.entries({
   "corner-radius": "radius",
@@ -1295,3 +1289,111 @@ $("#search").addEventListener("keydown", (event) => {
   }
 });
 applyAppearance();
+
+function applyInteractionSettings() {
+  const sidebar = ["paper", "ink", "secondary"].includes(state.sidebarTheme)
+    ? state.sidebarTheme
+    : "follow";
+  const themePaper = state.theme === "dark" ? "#20201e" : "#f7f5ef";
+  const background =
+    window
+      .getComputedStyle(document.body)
+      .getPropertyValue("--workspace-tone")
+      .trim() || themePaper;
+  const tone =
+    sidebar === "ink"
+      ? "#20201e"
+      : sidebar === "paper"
+        ? "#f7f5ef"
+        : sidebar === "secondary"
+          ? BackgroundStyle.color(state.secondary, "#e8dfce")
+          : state.wallpaper
+            ? themePaper
+            : background;
+  const panel = $("aside");
+  panel.style.setProperty("--sidebar-tone", tone);
+  panel.style.setProperty("--sidebar-ink", BackgroundStyle.foreground(tone));
+  panel.style.setProperty(
+    "--sidebar-image",
+    sidebar === "follow" && state.wallpaper
+      ? `url("${state.wallpaper}")`
+      : "none",
+  );
+  document.body.classList.toggle("motion-off", state.animations === false);
+  document.body.dataset.hover = ["lift", "none"].includes(state.hoverEffect)
+    ? state.hoverEffect
+    : "tint";
+  $("#sidebar-theme").value = sidebar;
+  $("#animations-enabled").checked = state.animations !== false;
+  $("#hover-effect").value = document.body.dataset.hover;
+  if (state.animations === false)
+    document.getAnimations?.().forEach((animation) => animation.cancel());
+}
+$("#sidebar-theme").onchange = (event) => {
+  state.sidebarTheme = event.target.value;
+  save();
+  applyAppearance();
+};
+$("#animations-enabled").onchange = (event) => {
+  state.animations = event.target.checked;
+  save();
+  applyAppearance();
+};
+$("#hover-effect").onchange = (event) => {
+  state.hoverEffect = event.target.value;
+  save();
+  applyAppearance();
+};
+function plannedBucket(task) {
+  const date = new Date(task.date);
+  date.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return date < today
+    ? "Overdue"
+    : +date === +today
+      ? "Today"
+      : +date === +tomorrow
+        ? "Tomorrow"
+        : "Upcoming";
+}
+function myDayAction(task) {
+  const included = task.myDay === todayKey();
+  return `<button class="subtle" data-myday="${task.id}" ${included ? "disabled" : ""}>${included ? "In My Day" : "+ My Day"}</button>`;
+}
+function renderPlanned(planned) {
+  $("#reminder-list").innerHTML =
+    ["Overdue", "Today", "Tomorrow", "Upcoming"]
+      .map((group) => {
+        const tasks = planned.filter((task) => plannedBucket(task) === group);
+        if (!tasks.length) return "";
+        return `<section class="planned-group"><div class="planned-group-heading"><h2>${group}</h2><span>${tasks.length}</span></div>${tasks.map((task) => `<div class="planned-card">${taskCard(task)}<div class="planned-bottom"><span>${esc(new Date(task.date).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }))}</span><div class="planned-actions">${myDayAction(task)}<button class="subtle" data-calendar="${task.id}">${icon("calendar")} Calendar reminder</button></div></div></div>`).join("")}</section>`;
+      })
+      .join("") ||
+    `<div class="empty-state">${icon("calendar")}<h3>No scheduled tasks</h3><p>Add a due date to a task to see it here.</p></div>`;
+  $("#day-schedule").hidden = view !== "all" || !!query || !planned.length;
+  $("#day-schedule-items").innerHTML = planned
+    .slice(0, 3)
+    .map(
+      (task) =>
+        `<div class="schedule-row"><span class="schedule-date">${plannedBucket(task)}</span><button data-edit="${task.id}" class="schedule-task">${esc(task.title)}<small>${esc(new Date(task.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}</small></button>${myDayAction(task)}</div>`,
+    )
+    .join("");
+}
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("[data-myday]");
+  if (!button) return;
+  const task = state.tasks.find((task) => task.id === button.dataset.myday);
+  if (!task) return;
+  const previous = task.myDay;
+  task.myDay = todayKey();
+  if (!save()) {
+    task.myDay = previous;
+    return;
+  }
+  render();
+  toast("Added to My Day", () => (task.myDay = previous));
+});
+applyInteractionSettings();

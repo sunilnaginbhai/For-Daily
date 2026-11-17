@@ -1,6 +1,9 @@
 window.DragMotion = {
   reduced() {
-    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    return (
+      document.body.classList.contains("motion-off") ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    );
   },
   capture() {
     return new Map(

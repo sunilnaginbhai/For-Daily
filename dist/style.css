@@ -936,6 +936,44 @@ h2 {
     padding: 16px;
   }
 }
+
+.sidebar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sidebar-actions #appearance {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+}
+.sidebar-actions #theme {
+  flex-shrink: 0;
+}
+@media (max-width: 680px) {
+  aside .side-bottom {
+    display: block;
+    margin: 0;
+    padding: 9px 0 12px;
+    border-top: 1px solid var(--line);
+  }
+  .side-bottom .storage-status {
+    display: none;
+  }
+  .sidebar-actions #appearance {
+    font-size: 12px;
+  }
+  .side-bottom #mobile-lists {
+    display: block;
+    margin-top: 8px;
+    width: 100%;
+    max-width: none;
+    min-height: 34px;
+    background: var(--sidebar-tone, var(--paper));
+    color: inherit;
+  }
+}
 .custom-bg .welcome {
   background: var(--paper);
   padding: 25px;

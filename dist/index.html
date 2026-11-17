@@ -62,9 +62,21 @@
       </div>
       <div id="list-nav"></div>
       <div class="side-bottom">
-        <button id="appearance">
-          <span data-icon="palette"></span>Customize workspace
-        </button>
+        <div class="sidebar-actions">
+          <button id="appearance">
+            <span data-icon="palette"></span>Customize workspace</button
+          ><button
+            class="icon-button"
+            id="theme"
+            aria-label="Toggle dark mode"
+            title="Toggle theme"
+          >
+            <span data-icon="moon"></span>
+          </button>
+        </div>
+        <select id="mobile-lists" aria-label="Open a list">
+          <option value="">My lists</option>
+        </select>
         <div class="storage-status">
           <span class="green-dot"></span
           ><span id="save-status">All changes saved</span>
@@ -72,30 +84,6 @@
       </div>
     </aside>
     <main>
-      <header>
-        <div class="breadcrumb">
-          <span id="view-title">My Day</span
-          ><select id="mobile-lists" aria-label="Open a list">
-            <option value="">My lists</option>
-          </select>
-        </div>
-        <div class="header-right">
-          <button
-            class="icon-button"
-            id="theme"
-            aria-label="Toggle dark mode"
-            title="Toggle theme"
-          >
-            <span data-icon="moon"></span></button
-          ><button
-            class="icon-button"
-            id="header-settings"
-            aria-label="Customize workspace"
-          >
-            <span data-icon="settings"></span></button
-          ><span class="avatar">S</span>
-        </div>
-      </header>
       <div class="content">
         <section class="welcome">
           <div>

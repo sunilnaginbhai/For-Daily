@@ -224,7 +224,6 @@ function render() {
       .join("") +
     '<option value="__new">+ New list</option>';
   $("#mobile-lists").value = view.startsWith("list:") ? view.slice(5) : "";
-  $("#view-title").textContent = name;
   $("#page-heading").textContent = query ? "Search results" : name;
   $$("nav [data-view]").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view),
@@ -651,8 +650,7 @@ $("#theme").onclick = () => {
   save();
   applyAppearance();
 };
-$("#appearance").onclick = $("#header-settings").onclick = () =>
-  $("#settings").showModal();
+$("#appearance").onclick = () => $("#settings").showModal();
 $("#close-settings").onclick = $("#done-settings").onclick = () =>
   $("#settings").close();
 $("#reset-bg").onclick = () => {

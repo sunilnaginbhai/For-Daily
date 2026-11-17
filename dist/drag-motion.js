@@ -32,6 +32,7 @@ window.DragMotion = {
     const card = event.target.closest(".task,.note");
     if (!card || !event.dataTransfer?.setDragImage) return;
     const ghost = card.cloneNode(true);
+    ghost.classList.remove("dragging", "drop-target");
     ghost.classList.add("drag-preview");
     ghost.removeAttribute("id");
     ghost.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));

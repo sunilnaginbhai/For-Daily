@@ -191,9 +191,9 @@
           <div class="reminder-info">
             <span data-icon="bell"></span>
             <p>
-              For reminders while Folio is closed, use
-              <strong>Add to calendar</strong> on a task and open the downloaded
-              file in your calendar app.
+              <strong>Reminders outside Folio</strong><br />Choose Calendar
+              reminder on a scheduled task, then open the downloaded file in
+              your calendar app.
             </p>
           </div>
         </section>
@@ -276,7 +276,7 @@
             <div id="note-fields">
               <h3>Note options</h3>
               <label class="check"
-                ><input type="checkbox" id="pin-input" /> Pin note</label
+                ><input type="checkbox" id="pin-input" /> Keep pinned</label
               ><label class="check"
                 ><input type="checkbox" id="checklist-input" /> Checklist</label
               >
@@ -343,9 +343,9 @@
         <div class="modal-actions">
           <div>
             <button type="button" class="subtle" id="duplicate-item" hidden>
-              Duplicate
-            </button>
-            <button type="button" class="danger" id="delete-item">Delete</button
+              Duplicate</button
+            ><button type="button" class="danger" id="delete-item">
+              Delete</button
             ><button type="button" class="subtle" id="task-calendar">
               Add to calendar
             </button>
@@ -360,7 +360,7 @@
       <div class="modal-heading">
         <div>
           <span class="dialog-kicker">FOLIO / PREFERENCES</span>
-          <h2 id="settings-title">Workspace settings</h2>
+          <h2 id="settings-title">Your workspace.</h2>
         </div>
         <button class="icon-button" id="close-settings" aria-label="Close">
           <span data-icon="close"></span>
@@ -370,7 +370,7 @@
         <section class="settings-section">
           <div>
             <h3>01 / Appearance</h3>
-            <p class="hint">Choose a theme and corner style.</p>
+            <p class="hint">Set the tone.</p>
           </div>
           <div>
             <div class="choices">
@@ -465,6 +465,48 @@
             </div>
             <h3 class="template-heading">Background templates</h3>
             <div id="background-templates" class="background-templates"></div>
+            <section class="auto-nature" aria-labelledby="auto-nature-heading">
+              <div class="auto-nature-heading">
+                <div>
+                  <h3 id="auto-nature-heading">Nature, on rotation</h3>
+                  <p class="hint">A fresh scene every 5 minutes.</p>
+                </div>
+                <label class="switch-control"
+                  ><input
+                    type="checkbox"
+                    role="switch"
+                    id="nature-enabled"
+                    aria-label="Automatic nature backgrounds"
+                  /><span class="switch-track" aria-hidden="true"></span
+                  ><span id="nature-toggle-label">Off</span></label
+                >
+              </div>
+              <label
+                >Image quality<select id="nature-quality">
+                  <option value="4k">4K - 3840 x 2160</option>
+                  <option value="hd">HD - 1920 x 1080</option>
+                </select></label
+              >
+              <p class="hint">
+                Daylight: 8 am-5 pm. Golden hour: 5-8 am and 5-8 pm. Night: 8
+                pm-5 am. Uses your device's local time.
+              </p>
+              <p id="nature-status" role="status">Off</p>
+              <div class="nature-credit">
+                <span id="nature-next"></span
+                ><a
+                  id="nature-source"
+                  href="https://unsplash.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Photos on Unsplash</a
+                >
+              </div>
+              <p class="hint">
+                Requires internet while the app is open. Switching off restores
+                your manual background.
+              </p>
+            </section>
             <div class="choices backgrounds">
               <button data-bg="linen">Paper</button
               ><button data-bg="blue">Ink</button
@@ -480,12 +522,6 @@
                 <option value="dots">Dots</option>
                 <option value="grid">Grid</option>
                 <option value="lines">Ruled lines</option>
-                <option value="diagonal">Diagonal</option>
-                <option value="leaves">Leaves</option>
-                <option value="waves">Waves</option>
-                <option value="crosses">Crosses</option>
-                <option value="contour">Contour</option>
-                <option value="woven">Woven</option>
               </select></label
             >
             <div id="bg-preview"><span>Background preview</span></div>
@@ -599,6 +635,7 @@
     <div id="toast" role="status">
       <span id="toast-message"></span><button id="undo" hidden>Undo</button>
     </div>
+    <script src="nature-wallpaper.js"></script>
     <script src="appearance-presets.js"></script>
     <script src="drag-motion.js"></script>
     <script src="background-style.js"></script>

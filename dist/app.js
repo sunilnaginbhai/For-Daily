@@ -32,6 +32,14 @@ function icon(name) {
 }
 $$("[data-icon]").forEach((el) => (el.innerHTML = icon(el.dataset.icon)));
 const todayKey = () => new Date().toLocaleDateString("en-CA");
+const natureWallpaper = new NatureWallpaper(() => applyAppearance());
+function effectiveWallpaper() {
+  return natureWallpaper.current || state.wallpaper || "";
+}
+function useManualBackground() {
+  state.autoNature = false;
+  natureWallpaper.sync(false, state.natureQuality);
+}
 const noteBackground = new NoteBackgroundEditor($, encodeBackground);
 const seed = {
   tasks: [],
@@ -116,15 +124,16 @@ function save() {
   }
 }
 function applyAppearance() {
+  natureWallpaper.sync(state.autoNature, state.natureQuality);
   document.body.classList.toggle("dark", state.theme === "dark");
   document.body.dataset.bg = state.bg;
-  document.body.classList.toggle("custom-bg", !!state.wallpaper);
-  const image = state.wallpaper ? `url("${state.wallpaper}")` : "";
+  document.body.classList.toggle("custom-bg", !!effectiveWallpaper());
+  const image = effectiveWallpaper() ? `url("${effectiveWallpaper()}")` : "";
   $("#wallpaper").style.backgroundImage = image;
   $("#wallpaper").style.filter = `brightness(${state.brightness / 100})`;
   $("#bg-preview").style.backgroundImage = image;
   $("#bg-preview").dataset.bg = state.bg;
-  $("#bg-preview span").textContent = state.wallpaper
+  $("#bg-preview span").textContent = effectiveWallpaper()
     ? "Your image"
     : "Background preview";
   $("#bg-brightness").value = state.brightness;
@@ -134,7 +143,7 @@ function applyAppearance() {
   $$("[data-bg]").forEach((b) =>
     b.classList.toggle(
       "selected",
-      b.dataset.bg === state.bg && !state.wallpaper,
+      b.dataset.bg === state.bg && !effectiveWallpaper(),
     ),
   );
   $("#theme").innerHTML = icon(state.theme === "dark" ? "sun" : "moon");
@@ -530,6 +539,7 @@ document.addEventListener("click", (e) => {
   }
   if (d.bg) {
     state.bg = d.bg;
+    useManualBackground();
     delete state.wallpaper;
     save();
     applyAppearance();
@@ -646,6 +656,7 @@ $("#appearance").onclick = $("#header-settings").onclick = () =>
 $("#close-settings").onclick = $("#done-settings").onclick = () =>
   $("#settings").close();
 $("#reset-bg").onclick = () => {
+  useManualBackground();
   delete state.wallpaper;
   state.bg = "blue";
   state.brightness = 85;
@@ -700,6 +711,7 @@ $("#background-upload").onchange = async (e) => {
   try {
     const data = await encodeBackground(file),
       previous = state.wallpaper;
+    useManualBackground();
     state.wallpaper = data;
     if (!save()) {
       state.wallpaper = previous;
@@ -1037,11 +1049,13 @@ function applyWorkspaceControls() {
   layer.style.filter = `brightness(${state.brightness / 100}) blur(${blur}px)`;
   $("#wallpaper-pattern").style.backgroundImage = texture;
   $("#wallpaper-pattern").style.opacity = pattern === "none" ? "0" : ".22";
-  $("#wallpaper-overlay").style.opacity = state.wallpaper
+  $("#wallpaper-overlay").style.opacity = effectiveWallpaper()
     ? String(overlay / 100)
     : "0";
   const preview = $("#bg-preview");
-  const image = state.wallpaper ? `url("${state.wallpaper}")` : "none";
+  const image = effectiveWallpaper()
+    ? `url("${effectiveWallpaper()}")`
+    : "none";
   preview.style.backgroundImage = "";
   preview.style.backgroundColor = color;
   preview.style.setProperty("--preview-image", image);
@@ -1061,7 +1075,7 @@ function applyWorkspaceControls() {
   );
   preview.style.setProperty(
     "--preview-overlay",
-    state.wallpaper ? overlay / 100 : 0,
+    effectiveWallpaper() ? overlay / 100 : 0,
   );
   for (const [id, value] of Object.entries({
     "corner-radius": radius,
@@ -1078,6 +1092,7 @@ function applyWorkspaceControls() {
   $("#bg-blur-value").textContent = blur + " px";
   $("#bg-overlay-value").textContent = overlay + "%";
   updatePresetSelection();
+  updateNatureControls();
   applyInteractionSettings();
 }
 for (const [id, key] of Object.entries({
@@ -1102,6 +1117,7 @@ for (const [id, key] of Object.entries({
 $("#bg-color").oninput = (event) => {
   state.backgroundColor = event.target.value;
   state.bg = "custom";
+  useManualBackground();
   delete state.wallpaper;
   applyAppearance();
 };
@@ -1204,7 +1220,7 @@ function updatePresetSelection() {
     );
     const active =
       state.bg === "custom" &&
-      !state.wallpaper &&
+      !effectiveWallpaper() &&
       state.backgroundColor === preset.color &&
       (state.pattern || "none") === preset.pattern;
     button.classList.toggle("selected", active);
@@ -1238,6 +1254,7 @@ $("#palette").onclick = (event) => {
   if (target === "background") {
     state.bg = "custom";
     state.backgroundColor = button.dataset.color;
+    useManualBackground();
     delete state.wallpaper;
   } else state[target] = button.dataset.color;
   save();
@@ -1255,6 +1272,7 @@ $("#background-templates").onclick = (event) => {
   state.blur = 0;
   state.overlay = 0;
   state.brightness = 100;
+  useManualBackground();
   delete state.wallpaper;
   save();
   applyAppearance();
@@ -1307,7 +1325,7 @@ function applyInteractionSettings() {
         ? "#f7f5ef"
         : sidebar === "secondary"
           ? BackgroundStyle.color(state.secondary, "#e8dfce")
-          : state.wallpaper
+          : effectiveWallpaper()
             ? themePaper
             : background;
   const panel = $("aside");
@@ -1315,8 +1333,8 @@ function applyInteractionSettings() {
   panel.style.setProperty("--sidebar-ink", BackgroundStyle.foreground(tone));
   panel.style.setProperty(
     "--sidebar-image",
-    sidebar === "follow" && state.wallpaper
-      ? `url("${state.wallpaper}")`
+    sidebar === "follow" && effectiveWallpaper()
+      ? `url("${effectiveWallpaper()}")`
       : "none",
   );
   document.body.classList.toggle("motion-off", state.animations === false);
@@ -1397,3 +1415,30 @@ document.addEventListener("click", (event) => {
   toast("Added to My Day", () => (task.myDay = previous));
 });
 applyInteractionSettings();
+
+function updateNatureControls() {
+  $("#nature-enabled").checked = state.autoNature === true;
+  $("#nature-quality").value = state.natureQuality === "hd" ? "hd" : "4k";
+  $("#nature-toggle-label").textContent = state.autoNature ? "On" : "Off";
+  $("#nature-status").textContent = natureWallpaper.status;
+  const photo = natureWallpaper.enabled && natureWallpaper.photo;
+  $("#nature-source").href = photo
+    ? NatureWallpaper.url(photo.id, natureWallpaper.quality)
+    : "https://unsplash.com";
+  $("#nature-source").textContent = photo
+    ? "Open photo on Unsplash"
+    : "Photos on Unsplash";
+  $("#nature-next").textContent = state.autoNature
+    ? "Changes every 5 min"
+    : "Manual background active";
+}
+$("#nature-enabled").onchange = (event) => {
+  state.autoNature = event.target.checked;
+  save();
+  applyAppearance();
+};
+$("#nature-quality").onchange = (event) => {
+  state.natureQuality = event.target.value;
+  save();
+  applyAppearance();
+};

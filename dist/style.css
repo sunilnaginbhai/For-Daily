@@ -822,13 +822,119 @@ h2 {
   display: flex;
   align-items: flex-start;
   gap: 15px;
-  padding: 24px 0;
-  border-top: 1px solid var(--line);
+  padding: 20px 24px;
+  border: 1px solid var(--line);
   background: var(--paper);
 }
 .reminder-info p {
   margin: 0;
   font-size: 14px;
+  line-height: 1.7;
+}
+.reminder-info > span {
+  flex: 0 0 22px;
+  margin-top: 3px;
+  color: var(--accent);
+}
+.reminder-info strong {
+  font-weight: 500;
+}
+.auto-nature {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin: 22px 0;
+  background: var(--paper);
+}
+.auto-nature-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.auto-nature-heading h3 {
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+.auto-nature .hint {
+  margin: 8px 0 14px;
+}
+.switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 13px;
+  margin: 2px 0 0;
+}
+.switch-control input {
+  position: absolute;
+  width: 42px;
+  height: 25px;
+  top: 0;
+  left: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.switch-track {
+  display: block;
+  width: 42px;
+  height: 25px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--secondary);
+  pointer-events: none;
+  transition: background 150ms ease;
+}
+.switch-track::after {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  top: 4px;
+  left: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 150ms ease;
+}
+.switch-control input:checked + .switch-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch-control input:checked + .switch-track::after {
+  transform: translateX(17px);
+  background: var(--accent-ink);
+}
+.keyboard-focus .switch-control:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+#nature-status {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 15px 0 10px;
+}
+.nature-credit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 12px;
+}
+.nature-credit a {
+  text-underline-offset: 3px;
+}
+@media (max-width: 680px) {
+  .reminder-info {
+    padding: 18px;
+    gap: 12px;
+  }
+  .auto-nature {
+    padding: 16px;
+  }
 }
 .custom-bg .welcome {
   background: var(--paper);

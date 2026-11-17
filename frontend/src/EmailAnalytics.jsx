@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -75,32 +76,33 @@ function AnalyticsDonut({ data, label, total, colors, caption = "emails" }) {
   return (
     <div className="analytics-donut-layout">
       <div className="analytics-donut" role="img" aria-label={label}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={45}
-              outerRadius={62}
-              paddingAngle={4}
-              stroke="none"
-              isAnimationActive
-              animationDuration={650}
-            >
-              {data.map((item, index) => (
-                <Cell key={item.name} fill={colors[index]} />
-              ))}
-            </Pie>
-            <Tooltip
-              content={<AnalyticsTooltip />}
-              position={{ x: 42, y: 8 }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        {total > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={45}
+                outerRadius={62}
+                paddingAngle={4}
+                stroke="none"
+                isAnimationActive
+                animationDuration={650}
+              >
+                {data.map((item, index) => (
+                  <Cell key={item.name} fill={colors[index]} />
+                ))}
+              </Pie>
+              <Tooltip content={<AnalyticsTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="analytics-donut-empty" aria-hidden="true" />
+        )}
         <div className="analytics-donut-center" aria-hidden="true">
           <strong>{total.toLocaleString()}</strong>
-          <span>{caption}</span>
+          <span>{total ? caption : "No data"}</span>
         </div>
       </div>
       <div className="analytics-legend-list">
@@ -122,7 +124,12 @@ function AnalyticsDonut({ data, label, total, colors, caption = "emails" }) {
   );
 }
 
-export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown }) {
+export default function EmailAnalytics({
+  emails,
+  unreadCount,
+  priorityBreakdown,
+  gmailConnected,
+}) {
   const [trendRange, setTrendRange] = useState("daily");
   const activityData = activityTrends[trendRange];
   const activityTotals = activityData.reduce(
@@ -165,7 +172,9 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
           <h2>Email analytics</h2>
         </div>
         <div className="email-analytics-controls">
-          <span className="analytics-sample-label">Sample data</span>
+          <span className={`analytics-sample-label${gmailConnected ? " connected" : ""}`}>
+            {gmailConnected ? "Gmail connected" : "Demo inbox"}
+          </span>
           <div className="analytics-range" role="group" aria-label="Activity trend period">
             {trendPeriods.map(([range, label]) => (
               <button
@@ -187,22 +196,23 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
           <div className="analytics-card-heading">
             <div>
               <h3>Email activity</h3>
-              <p>Received and sent messages over time</p>
+              <p>Illustrative activity trend</p>
             </div>
             <div className="analytics-legend" aria-hidden="true">
               <span><i className="analytics-dot inbox" />Received</span>
               <span><i className="analytics-dot sent" />Sent</span>
+              <span className="analytics-trend-note">Sample</span>
             </div>
           </div>
           <div
             className="analytics-chart"
             role="img"
-            aria-label={`Received and sent email activity, ${trendRange}`}
+            aria-label={`Illustrative received and sent email activity, ${trendRange}`}
           >
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={250}>
               <AreaChart
                 data={activityData}
-                margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
+                margin={{ top: 12, right: 18, bottom: 4, left: 8 }}
               >
                 <defs>
                   <linearGradient id="email-inbox-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -224,16 +234,21 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "var(--muted)", fontSize: 11 }}
-                  interval={0}
-                  dy={8}
+                  interval={trendRange === "monthly" ? "preserveStartEnd" : 0}
+                  tickMargin={12}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "var(--muted)", fontSize: 11 }}
-                  width={34}
+                  width={42}
+                  tickCount={5}
+                  allowDecimals={false}
                 />
-                <Tooltip content={<AnalyticsTooltip />} />
+                <Tooltip
+                  content={<AnalyticsTooltip />}
+                  cursor={{ stroke: "var(--line)", strokeDasharray: "3 4" }}
+                />
                 <Area
                   type="monotone"
                   dataKey="inbox"
@@ -280,12 +295,12 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
           <div className="analytics-card-heading">
             <div>
               <h3>Inbox vs sent</h3>
-              <p>{trendRange} volume</p>
+              <p>Illustrative {trendRange} volume</p>
             </div>
           </div>
           <AnalyticsDonut
             data={inboxSentData}
-            label={`${activityTotals.inbox} inbox and ${activityTotals.sent} sent emails`}
+            label={`Illustrative data: ${activityTotals.inbox} inbox and ${activityTotals.sent} sent emails`}
             total={activityTotals.inbox + activityTotals.sent}
             caption="total"
             colors={["var(--accent)", "var(--analytics-sent)"]}
@@ -304,18 +319,26 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
             role="img"
             aria-label={`High priority ${priorityBreakdown[0].count}, medium priority ${priorityBreakdown[1].count}, low priority ${priorityBreakdown[2].count}`}
           >
-            <ResponsiveContainer width="100%" height={170}>
+            <ResponsiveContainer width="100%" height={190}>
               <BarChart
                 data={priorityBreakdown}
                 layout="vertical"
-                margin={{ top: 4, right: 16, bottom: 0, left: 0 }}
+                margin={{ top: 6, right: 28, bottom: 8, left: 0 }}
               >
                 <CartesianGrid
                   horizontal={false}
                   stroke="var(--soft-line)"
                   strokeDasharray="3 5"
                 />
-                <XAxis type="number" domain={[0, "dataMax"]} hide />
+                <XAxis
+                  type="number"
+                  domain={[0, (max) => (max > 0 ? max * 1.25 : 1)]}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "var(--muted)", fontSize: 10 }}
+                  tickMargin={8}
+                  allowDecimals={false}
+                />
                 <YAxis
                   type="category"
                   dataKey="label"
@@ -349,6 +372,13 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
                       }
                     />
                   ))}
+                  <LabelList
+                    dataKey="count"
+                    position="right"
+                    fill="var(--muted)"
+                    fontSize={11}
+                    formatter={(value) => Number(value).toLocaleString()}
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -368,25 +398,37 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
             aria-label={`Email categories: ${categoryBreakdown.map((item) => `${item.label} ${item.count}`).join(", ") || "no messages"}`}
           >
             {categoryBreakdown.length ? (
-              <ResponsiveContainer width="100%" height={170}>
+              <ResponsiveContainer width="100%" height={190}>
                 <BarChart
                   data={categoryBreakdown}
                   layout="vertical"
-                  margin={{ top: 4, right: 16, bottom: 0, left: 0 }}
+                  margin={{ top: 6, right: 28, bottom: 8, left: 0 }}
                 >
                   <CartesianGrid
                     horizontal={false}
                     stroke="var(--soft-line)"
                     strokeDasharray="3 5"
                   />
-                  <XAxis type="number" domain={[0, "dataMax"]} hide />
+                  <XAxis
+                    type="number"
+                    domain={[0, (max) => (max > 0 ? max * 1.25 : 1)]}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "var(--muted)", fontSize: 10 }}
+                    tickMargin={8}
+                    allowDecimals={false}
+                  />
                   <YAxis
                     type="category"
                     dataKey="label"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "var(--muted)", fontSize: 11 }}
-                    width={76}
+                    width={92}
+                    tickFormatter={(value) => {
+                      const label = String(value);
+                      return label.length > 13 ? `${label.slice(0, 12)}…` : label;
+                    }}
                   />
                   <Tooltip
                     content={<AnalyticsTooltip />}
@@ -401,7 +443,15 @@ export default function EmailAnalytics({ emails, unreadCount, priorityBreakdown 
                     radius={[0, 6, 6, 0]}
                     barSize={11}
                     isAnimationActive={false}
-                  />
+                  >
+                    <LabelList
+                      dataKey="count"
+                      position="right"
+                      fill="var(--muted)"
+                      fontSize={11}
+                      formatter={(value) => Number(value).toLocaleString()}
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (

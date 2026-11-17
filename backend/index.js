@@ -6,6 +6,10 @@ import { google } from "googleapis";
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  parseGmailMessageListQuery,
+  uniqueGmailMessageIds,
+} from "./gmail-pagination.js";
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectDirectory = path.resolve(serverDirectory, "..");
@@ -281,11 +285,31 @@ function toEmail(message) {
 }
 
 function normalizeGoogleError(error) {
-  if (error.response?.status === 401) {
+  const status = error.response?.status;
+  const reasons = error.response?.data?.error?.errors?.map(
+    (item) => item.reason,
+  ) || [];
+  const rateLimitedReasons = new Set([
+    "rateLimitExceeded",
+    "userRateLimitExceeded",
+    "quotaExceeded",
+  ]);
+  if (
+    status === 429 ||
+    (status === 403 && reasons.some((reason) => rateLimitedReasons.has(reason)))
+  ) {
+    error.status = 429;
+    error.publicMessage =
+      "Gmail is temporarily rate-limiting requests. Wait briefly, then try again.";
+    const retryAfter = Number(error.response?.headers?.["retry-after"]);
+    if (Number.isFinite(retryAfter) && retryAfter > 0) {
+      error.retryAfterSeconds = Math.min(Math.ceil(retryAfter), 3600);
+    }
+  } else if (status === 401) {
     error.status = 401;
     error.publicMessage =
       "Gmail authorization expired. Disconnect and reconnect your account.";
-  } else if (error.response?.status === 403) {
+  } else if (status === 403) {
     error.status = 403;
     error.publicMessage =
       "Gmail permissions are missing or outdated. Disconnect Gmail and reconnect to approve the updated access.";
@@ -392,32 +416,69 @@ app.post(
 );
 
 app.get(
+  "/api/gmail/labels",
+  asyncRoute(async (req, res) => {
+    try {
+      const gmail = gmailForRequest(req);
+      const result = await gmail.users.labels.list({
+        userId: "me",
+      });
+      const labels = (result.data.labels || [])
+        .filter((label) => label.id && label.name)
+        .map(({ id, name, type }) => ({ id, name, type: type || "user" }));
+
+      return res.json({ labels });
+    } catch (error) {
+      throw normalizeGoogleError(error);
+    }
+  }),
+);
+
+app.get(
   "/api/gmail/messages",
   asyncRoute(async (req, res) => {
-    const maxResults = Number(req.query.maxResults ?? 25);
-    if (!Number.isInteger(maxResults) || maxResults < 1 || maxResults > 50) {
-      throw new HttpError(400, "maxResults must be an integer between 1 and 50.");
-    }
+    const { maxResults, pageToken, labelIds, q } =
+      parseGmailMessageListQuery(req.query);
 
     try {
       const gmail = gmailForRequest(req);
       const result = await gmail.users.messages.list({
         userId: "me",
-        q: "in:inbox",
         maxResults,
+        ...(pageToken ? { pageToken } : {}),
+        ...(labelIds.length ? { labelIds } : {}),
+        ...(q ? { q } : {}),
       });
-      const messages = await Promise.all(
-        (result.data.messages || []).map(async ({ id }) => {
-          const response = await gmail.users.messages.get({
-            userId: "me",
-            id,
-            format: "full",
-          });
-          return toEmail(response.data);
+      const ids = uniqueGmailMessageIds(result.data.messages || []);
+      const messages = [];
+      const concurrency = 5;
+      let nextIndex = 0;
+      let fetchError;
+      await Promise.all(
+        Array.from({ length: Math.min(concurrency, ids.length) }, async () => {
+          while (!fetchError) {
+            const index = nextIndex++;
+            if (index >= ids.length) return;
+            try {
+              const response = await gmail.users.messages.get({
+                userId: "me",
+                id: ids[index],
+                format: "full",
+              });
+              messages[index] = toEmail(response.data);
+            } catch (error) {
+              fetchError = error;
+            }
+          }
         }),
       );
+      if (fetchError) throw fetchError;
 
-      return res.json({ messages });
+      return res.json({
+        messages,
+        nextPageToken: result.data.nextPageToken || null,
+        resultSizeEstimate: result.data.resultSizeEstimate ?? null,
+      });
     } catch (error) {
       throw normalizeGoogleError(error);
     }
@@ -586,6 +647,9 @@ app.use("/api", (_req, res) => {
 app.use((error, req, res, _next) => {
   const status = error.status || 500;
   console.error(`Request failed for ${req.method} ${req.path}: ${error.message}`);
+  if (status === 429) {
+    res.setHeader("Retry-After", String(error.retryAfterSeconds || 30));
+  }
   res.status(status).json({
     error:
       error.publicMessage ||

@@ -12,7 +12,12 @@ async function request(path, options) {
   }
 
   if (!response.ok) {
-    throw new Error(payload.error || `Gmail request failed (${response.status}).`);
+    const error = new Error(
+      payload.error || `Gmail request failed (${response.status}).`,
+    );
+    error.status = response.status;
+    error.retryAfterSeconds = Number(response.headers.get("Retry-After")) || null;
+    throw error;
   }
 
   return payload;
@@ -22,8 +27,21 @@ export function getGmailStatus() {
   return request("/api/auth/status");
 }
 
-export function getGmailMessages() {
-  return request("/api/gmail/messages");
+export function getGmailLabels() {
+  return request("/api/gmail/labels");
+}
+
+export function getGmailMessages({
+  maxResults = 25,
+  pageToken,
+  labelIds = [],
+  q,
+} = {}) {
+  const params = new URLSearchParams({ maxResults: String(maxResults) });
+  if (pageToken) params.set("pageToken", pageToken);
+  for (const labelId of labelIds) params.append("labelIds", labelId);
+  if (q) params.set("q", q);
+  return request(`/api/gmail/messages?${params.toString()}`);
 }
 
 export function updateGmailMessages(ids, action) {

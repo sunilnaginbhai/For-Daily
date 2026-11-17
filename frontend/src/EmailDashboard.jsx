@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
@@ -7,6 +7,8 @@ import {
   ArrowUpRight,
   CalendarClock,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Check,
   CheckCheck,
@@ -32,6 +34,7 @@ import {
 import {
   disconnectGmail,
   downloadGmailAttachment,
+  getGmailLabels,
   getGmailMessages,
   getGmailStatus,
   sendGmailReply,
@@ -40,6 +43,8 @@ import {
 import "./EmailDashboard.css";
 
 const EmailAnalytics = React.lazy(() => import("./EmailAnalytics.jsx"));
+const GMAIL_PAGE_SIZE = 25;
+const MAX_CACHED_GMAIL_PAGES = 20;
 
 const minutesAgo = (minutes) =>
   new Date(Date.now() - minutes * 60 * 1000).toISOString();
@@ -272,6 +277,17 @@ const initialEmails = [
 const tabs = ["All", "Unread", "Important", "Starred", "Action Required"];
 const priorityRank = { High: 0, Medium: 1, Low: 2 };
 
+function mergeEmailLists(...lists) {
+  return [
+    ...new Map(
+      lists
+        .flat()
+        .filter((email) => email && typeof email.id === "string")
+        .map((email) => [email.id, email]),
+    ).values(),
+  ];
+}
+
 function formatTime(date) {
   const parsed = new Date(date);
   const now = new Date();
@@ -422,6 +438,7 @@ function SelectMenu({ label, value, options, onChange, className = "" }) {
 
 function EmailDashboard({ isActive, onClose }) {
   const [emails, setEmails] = useState(initialEmails);
+  const [gmailLabels, setGmailLabels] = useState([]);
   const [gmailStatus, setGmailStatus] = useState({
     configured: false,
     connected: false,
@@ -431,10 +448,21 @@ function EmailDashboard({ isActive, onClose }) {
   const [gmailError, setGmailError] = useState("");
   const [disconnecting, setDisconnecting] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
+  const [activeLabelId, setActiveLabelId] = useState("INBOX");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("All priorities");
   const [dateFilter, setDateFilter] = useState("Any time");
   const [sortBy, setSortBy] = useState("Newest");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageInfo, setPageInfo] = useState({
+    nextPageToken: null,
+    resultSizeEstimate: null,
+  });
+  const [pageLoading, setPageLoading] = useState(false);
+  const [pageError, setPageError] = useState("");
+  const [rateLimitWait, setRateLimitWait] = useState(0);
+  const [infiniteScroll, setInfiniteScroll] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [selectedEmailId, setSelectedEmailId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -443,10 +471,43 @@ function EmailDashboard({ isActive, onClose }) {
   const toastTimer = useRef(null);
   const refreshTimer = useRef(null);
   const searchInputRef = useRef(null);
+  const infiniteSentinelRef = useRef(null);
+  const infiniteLoadLockRef = useRef(false);
+  const pageCacheRef = useRef(new Map());
+  const pageTokensRef = useRef(new Map());
+  const inFlightPageRequestsRef = useRef(new Map());
+  const labelsRequestRef = useRef(null);
   const isMacPlatform =
     typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const searchShortcut = isMacPlatform ? "⌘ K" : "Ctrl K";
   const searchShortcutKey = isMacPlatform ? "Meta+K" : "Control+K";
+
+  const gmailQuery = useMemo(() => {
+    const labelIds = [activeLabelId];
+    if (activeTab === "Unread") labelIds.push("UNREAD");
+    if (activeTab === "Important") labelIds.push("IMPORTANT");
+    if (activeTab === "Starred") labelIds.push("STARRED");
+
+    const terms = [];
+    if (debouncedSearch) terms.push(debouncedSearch);
+    if (priorityFilter === "High") terms.push("is:important");
+    if (priorityFilter === "Low") terms.push("-is:important");
+    if (dateFilter === "Today") terms.push("newer_than:1d");
+    if (dateFilter === "Last 7 days") terms.push("newer_than:7d");
+
+    return {
+      labelIds: [...new Set(labelIds)],
+      ...(terms.length ? { q: terms.join(" ") } : {}),
+    };
+  }, [activeLabelId, activeTab, dateFilter, debouncedSearch, priorityFilter]);
+  const gmailQueryKey = JSON.stringify({
+    query: gmailQuery,
+    folder: activeLabelId,
+    tab: activeTab,
+    search: debouncedSearch,
+    priority: priorityFilter,
+    date: dateFilter,
+  });
 
   const selectedEmail = emails.find((email) => email.id === selectedEmailId);
   const unreadCount = emails.filter((email) => email.unread).length;
@@ -458,6 +519,113 @@ function EmailDashboard({ isActive, onClose }) {
     count: emails.filter((email) => email.priority === priority).length,
   }));
   const totalPriorityCount = priorityBreakdown.reduce((total, item) => total + item.count, 0);
+
+  const loadGmailPage = useCallback((queryKey, query, pageToken, force = false) => {
+    const requestKey = JSON.stringify([queryKey, pageToken || null]);
+    if (!force && pageCacheRef.current.has(requestKey)) {
+      return Promise.resolve(pageCacheRef.current.get(requestKey));
+    }
+
+    const pending = inFlightPageRequestsRef.current.get(requestKey);
+    if (pending) return pending;
+
+    const request = getGmailMessages({
+      maxResults: GMAIL_PAGE_SIZE,
+      pageToken,
+      labelIds: query.labelIds,
+      q: query.q,
+    })
+      .then((result) => {
+        if (
+          !Array.isArray(result.messages) ||
+          (result.nextPageToken != null &&
+            typeof result.nextPageToken !== "string")
+        ) {
+          throw new Error("The Gmail backend returned an invalid message page.");
+        }
+
+        const uniqueMessages = [
+          ...new Map(
+            result.messages
+              .filter((email) => email && typeof email.id === "string")
+              .map((email) => [email.id, email]),
+          ).values(),
+        ];
+        const page = { ...result, messages: uniqueMessages };
+        pageCacheRef.current.set(requestKey, page);
+        while (pageCacheRef.current.size > MAX_CACHED_GMAIL_PAGES) {
+          pageCacheRef.current.delete(pageCacheRef.current.keys().next().value);
+        }
+        return page;
+      })
+      .finally(() => {
+        inFlightPageRequestsRef.current.delete(requestKey);
+      });
+
+    inFlightPageRequestsRef.current.set(requestKey, request);
+    return request;
+  }, []);
+
+  const getPageTokens = useCallback((queryKey) => {
+    let tokens = pageTokensRef.current.get(queryKey);
+    if (!tokens) {
+      tokens = [null];
+      pageTokensRef.current.set(queryKey, tokens);
+      while (pageTokensRef.current.size > MAX_CACHED_GMAIL_PAGES) {
+        pageTokensRef.current.delete(pageTokensRef.current.keys().next().value);
+      }
+    }
+    return tokens;
+  }, []);
+
+  const reloadActiveGmailPage = async (force = true) => {
+    const tokens = getPageTokens(gmailQueryKey);
+    const page = await loadGmailPage(
+      gmailQueryKey,
+      gmailQuery,
+      tokens[pageIndex],
+      force,
+    );
+    tokens[pageIndex + 1] = page.nextPageToken || null;
+    setPageInfo({
+      nextPageToken: page.nextPageToken || null,
+      resultSizeEstimate: page.resultSizeEstimate ?? null,
+    });
+    setEmails((current) =>
+      infiniteScroll
+        ? mergeEmailLists(current, page.messages)
+        : page.messages,
+    );
+    setPageError("");
+    setGmailError("");
+    setRateLimitWait(0);
+    return page;
+  };
+
+  const reportGmailPageError = (error) => {
+    setPageError(error.message);
+    setGmailError(error.message);
+    if (error.status === 429) {
+      setRateLimitWait(error.retryAfterSeconds || 30);
+    }
+  };
+
+  useEffect(() => {
+    if (rateLimitWait <= 0) return undefined;
+    const timer = window.setTimeout(
+      () => setRateLimitWait((current) => Math.max(0, current - 1)),
+      1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [rateLimitWait]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearch(search.trim()),
+      300,
+    );
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     const badge = document.querySelector("#email-unread-count");
@@ -495,26 +663,39 @@ function EmailDashboard({ isActive, onClose }) {
 
     setGmailStatus((current) => ({ ...current, checking: true }));
     (async () => {
-      let connected = false;
       try {
         const status = await getGmailStatus();
-        connected = status.connected;
         if (!active) return;
         setGmailStatus({ ...status, checking: false });
 
         if (status.connected) {
-          const inbox = await getGmailMessages();
-          if (!Array.isArray(inbox.messages)) {
-            throw new Error("The Gmail backend returned an invalid inbox.");
+          setEmails([]);
+          if (!labelsRequestRef.current) {
+            labelsRequestRef.current = getGmailLabels()
+              .then((result) => {
+                if (!Array.isArray(result.labels)) {
+                  throw new Error("The Gmail backend returned invalid labels.");
+                }
+                return result.labels;
+              })
+              .catch((error) => {
+                labelsRequestRef.current = null;
+                throw error;
+              });
           }
-          if (active) setEmails(inbox.messages);
+          try {
+            const labels = await labelsRequestRef.current;
+            if (active) setGmailLabels(labels);
+          } catch (error) {
+            if (active) setGmailError(error.message);
+          }
         } else if (active) {
           setEmails(initialEmails);
+          setGmailLabels([]);
         }
       } catch (error) {
         if (!active) return;
         setGmailStatus((current) => ({ ...current, checking: false }));
-        if (connected) setEmails([]);
         setGmailError(error.message);
       }
     })();
@@ -523,6 +704,111 @@ function EmailDashboard({ isActive, onClose }) {
       active = false;
     };
   }, [isActive]);
+
+  useEffect(() => {
+    setPageIndex(0);
+    setPageInfo({ nextPageToken: null, resultSizeEstimate: null });
+    setPageError("");
+    infiniteLoadLockRef.current = false;
+    if (!gmailStatus.connected) return;
+
+    pageTokensRef.current.set(gmailQueryKey, [null]);
+    setEmails([]);
+    setSelectedIds(new Set());
+    setSelectedEmailId(null);
+  }, [gmailQueryKey]);
+
+  useEffect(() => {
+    if (!isActive || !gmailStatus.connected) return undefined;
+
+    const tokens = getPageTokens(gmailQueryKey);
+    const pageToken = tokens[pageIndex];
+    if (pageIndex > 0 && !pageToken) {
+      setPageIndex(0);
+      return undefined;
+    }
+
+    let active = true;
+    setPageLoading(true);
+    setPageError("");
+    loadGmailPage(gmailQueryKey, gmailQuery, pageToken)
+      .then((page) => {
+        if (!active) return;
+        tokens[pageIndex + 1] = page.nextPageToken || null;
+        setPageInfo({
+          nextPageToken: page.nextPageToken || null,
+          resultSizeEstimate: page.resultSizeEstimate ?? null,
+        });
+        setEmails((current) =>
+          infiniteScroll
+            ? [
+                ...new Map(
+                  [...current, ...page.messages].map((email) => [
+                    email.id,
+                    email,
+                  ]),
+                ).values(),
+              ]
+            : page.messages,
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        reportGmailPageError(error);
+        if (!infiniteScroll) setEmails([]);
+      })
+      .finally(() => {
+        if (active) {
+          setPageLoading(false);
+          infiniteLoadLockRef.current = false;
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    gmailQuery,
+    gmailQueryKey,
+    gmailStatus.connected,
+    infiniteScroll,
+    isActive,
+    loadGmailPage,
+    pageIndex,
+  ]);
+
+  useEffect(() => {
+    if (
+      !infiniteScroll ||
+      !gmailStatus.connected ||
+      !isActive ||
+      pageLoading ||
+      pageError ||
+      !pageInfo.nextPageToken ||
+      !infiniteSentinelRef.current
+    ) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !infiniteLoadLockRef.current) {
+          infiniteLoadLockRef.current = true;
+          setPageIndex((current) => current + 1);
+        }
+      },
+      { rootMargin: "180px" },
+    );
+    observer.observe(infiniteSentinelRef.current);
+    return () => observer.disconnect();
+  }, [
+    gmailStatus.connected,
+    infiniteScroll,
+    isActive,
+    pageError,
+    pageInfo.nextPageToken,
+    pageLoading,
+  ]);
 
   useEffect(() => {
     if (!isActive) return undefined;
@@ -623,7 +909,10 @@ function EmailDashboard({ isActive, onClose }) {
         failed = result.failed;
       }
 
-      if (succeeded.length) applyEmailAction(succeeded, action);
+      if (succeeded.length) {
+        applyEmailAction(succeeded, action);
+        if (gmailStatus.connected) pageCacheRef.current.clear();
+      }
       if (failed.length) {
         const message = `${failed.length} message(s) could not be updated. Successful changes were applied.`;
         setGmailError(message);
@@ -635,15 +924,16 @@ function EmailDashboard({ isActive, onClose }) {
       if (successMessage) notify(successMessage);
     } catch (error) {
       setGmailError(error.message);
-      if (gmailStatus.connected) {
+      if (error.status === 429) {
+        setRateLimitWait(error.retryAfterSeconds || 30);
+      } else if (gmailStatus.connected) {
         try {
-          const inbox = await getGmailMessages();
-          if (!Array.isArray(inbox.messages)) {
-            throw new Error("The Gmail backend returned an invalid inbox.");
-          }
-          setEmails(inbox.messages);
+          pageCacheRef.current.clear();
+          await reloadActiveGmailPage(true);
         } catch (refreshError) {
-          setGmailError(`${error.message} Inbox refresh failed: ${refreshError.message}`);
+          reportGmailPageError(
+            new Error(`${error.message} Page refresh failed: ${refreshError.message}`),
+          );
         }
       }
       notify("Could not update Gmail messages");
@@ -696,15 +986,11 @@ function EmailDashboard({ isActive, onClose }) {
 
     if (gmailStatus.connected) {
       try {
-        const inbox = await getGmailMessages();
-        if (!Array.isArray(inbox.messages)) {
-          throw new Error("The Gmail backend returned an invalid inbox.");
-        }
-        setEmails(inbox.messages);
-        setGmailError("");
+        pageCacheRef.current.clear();
+        await reloadActiveGmailPage(true);
         notify("Gmail inbox refreshed");
       } catch (error) {
-        setGmailError(error.message);
+        reportGmailPageError(error);
         notify("Could not refresh the Gmail inbox");
       } finally {
         setRefreshing(false);
@@ -733,6 +1019,16 @@ function EmailDashboard({ isActive, onClose }) {
         emailAddress: "",
       }));
       setEmails(initialEmails);
+      setGmailLabels([]);
+      setActiveLabelId("INBOX");
+      setActiveTab("All");
+      setPageIndex(0);
+      setPageInfo({ nextPageToken: null, resultSizeEstimate: null });
+      setPageError("");
+      setRateLimitWait(0);
+      pageCacheRef.current.clear();
+      pageTokensRef.current.clear();
+      labelsRequestRef.current = null;
       setSelectedIds(new Set());
       setSelectedEmailId(null);
       setGmailError("");
@@ -793,6 +1089,23 @@ function EmailDashboard({ isActive, onClose }) {
     month: "long",
     day: "numeric",
   }).format(new Date());
+  const defaultGmailLabels = [
+    { id: "INBOX", name: "Inbox" },
+    { id: "SENT", name: "Sent" },
+    { id: "IMPORTANT", name: "Important" },
+    { id: "STARRED", name: "Starred" },
+  ];
+  const folderLabels = gmailLabels.length ? gmailLabels : defaultGmailLabels;
+  const activeLabel =
+    folderLabels.find((label) => label.id === activeLabelId) ||
+    defaultGmailLabels[0];
+  const folderName =
+    activeLabel.name.replace(/^\[Gmail\]\//, "") || "Inbox";
+  const paginationSummary = infiniteScroll
+    ? `${emails.length} loaded${pageInfo.resultSizeEstimate != null ? ` of about ${pageInfo.resultSizeEstimate}` : ""}`
+    : `Page ${pageIndex + 1} · ${
+        emails.length ? `${pageIndex * GMAIL_PAGE_SIZE + 1}–${pageIndex * GMAIL_PAGE_SIZE + emails.length}` : "0"
+      }${pageInfo.resultSizeEstimate != null ? ` of about ${pageInfo.resultSizeEstimate}` : ""}`;
   const urgentEmails = emails
     .filter((email) => email.actionRequired)
     .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority])
@@ -810,7 +1123,7 @@ function EmailDashboard({ isActive, onClose }) {
               Workspace
             </button>
             <p className="email-eyebrow">{dateLabel}</p>
-            <h1>Inbox</h1>
+            <h1>{folderName}</h1>
           </div>
           <div className="email-header-actions">
             <label className="email-search">
@@ -1021,6 +1334,7 @@ function EmailDashboard({ isActive, onClose }) {
             emails={emails}
             unreadCount={unreadCount}
             priorityBreakdown={priorityBreakdown}
+            gmailConnected={gmailStatus.connected}
           />
         </React.Suspense>
 
@@ -1029,21 +1343,49 @@ function EmailDashboard({ isActive, onClose }) {
             <div className="email-panel-heading">
               <div>
                 <span className="email-section-kicker">YOUR WORKSPACE</span>
-                <h2>Inbox <span>{emails.length}</span></h2>
+                <h2>
+                  {folderName}{" "}
+                  <span>
+                    {gmailStatus.connected
+                      ? pageInfo.resultSizeEstimate ?? emails.length
+                      : emails.length}
+                  </span>
+                </h2>
               </div>
-              <button
-                className="email-compose-button"
-                onClick={() => notify("New message composition is not implemented yet")}
-                disabled={gmailStatus.connected}
-                title={
-                  gmailStatus.connected
-                    ? "New message composition is not implemented yet"
-                    : undefined
-                }
-              >
-                <Plus size={16} />
-                Compose
-              </button>
+              <div className="email-panel-actions">
+                {gmailStatus.connected && (
+                  <label className="email-folder-select">
+                    <span>Folder</span>
+                    <select
+                      aria-label="Gmail folder"
+                      value={activeLabelId}
+                      onChange={(event) => {
+                        setActiveLabelId(event.target.value);
+                        setActiveTab("All");
+                      }}
+                    >
+                      {folderLabels.map((label) => (
+                        <option key={label.id} value={label.id}>
+                          {label.name.replace(/^\[Gmail\]\//, "")}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <button
+                  className="email-compose-button"
+                  onClick={() => notify("New message composition is not implemented yet")}
+                  disabled={gmailStatus.connected}
+                  title={
+                    gmailStatus.connected
+                      ? "New message composition is not implemented yet"
+                      : undefined
+                  }
+                >
+                  <Plus size={16} />
+                  Compose
+                </button>
+              </div>
             </div>
 
             <div className="email-tabs" role="tablist" aria-label="Email filters">
@@ -1148,8 +1490,12 @@ function EmailDashboard({ isActive, onClose }) {
             </div>
 
             <div className="email-list" aria-live="polite">
-              {refreshing ? (
-                <div className="email-skeleton-list" aria-label="Refreshing inbox">
+              {refreshing ||
+              (pageLoading && (!infiniteScroll || !emails.length)) ? (
+                <div
+                  className="email-skeleton-list"
+                  aria-label={pageLoading ? `Loading page ${pageIndex + 1}` : "Refreshing inbox"}
+                >
                   {[0, 1, 2, 3].map((item) => (
                     <div className="email-skeleton" key={item}>
                       <span className="skeleton-avatar" />
@@ -1254,21 +1600,129 @@ function EmailDashboard({ isActive, onClose }) {
                 </AnimatePresence>
               ) : (
                 <div className="email-empty-state">
-                  <h3>No emails found</h3>
-                  <p>Try a different search or update your filters.</p>
+                  <h3>{pageError ? "Could not load this page" : "No emails found"}</h3>
+                  <p>
+                    {pageError ||
+                      "Try a different search or update your filters."}
+                  </p>
                   <button
                     onClick={() => {
-                      setSearch("");
-                      setActiveTab("All");
-                      setPriorityFilter("All priorities");
-                      setDateFilter("Any time");
+                      if (pageError && gmailStatus.connected) {
+                        pageCacheRef.current.clear();
+                        setPageLoading(true);
+                        void reloadActiveGmailPage(true)
+                          .catch(reportGmailPageError)
+                          .finally(() => setPageLoading(false));
+                      } else {
+                        setSearch("");
+                        setActiveTab("All");
+                        setPriorityFilter("All priorities");
+                        setDateFilter("Any time");
+                      }
                     }}
                   >
-                    Clear filters
+                    {pageError
+                      ? rateLimitWait > 0
+                        ? `Retry in ${rateLimitWait}s`
+                        : "Retry"
+                      : "Clear filters"}
                   </button>
                 </div>
               )}
+              {pageLoading && infiniteScroll && emails.length > 0 && (
+                <div className="email-infinite-loading" role="status">
+                  <span className="email-loading-spinner" />
+                  Loading page {pageIndex + 1}…
+                </div>
+              )}
+              {infiniteScroll &&
+                gmailStatus.connected &&
+                pageInfo.nextPageToken &&
+                !pageError && (
+                  <div
+                    className="email-infinite-sentinel"
+                    ref={infiniteSentinelRef}
+                    aria-hidden="true"
+                  />
+                )}
             </div>
+            {pageError && visibleEmails.length > 0 && (
+              <p className="email-page-error" role="alert">
+                {pageError}
+                <button
+                  onClick={() => {
+                    pageCacheRef.current.clear();
+                    setPageLoading(true);
+                    void reloadActiveGmailPage(true)
+                      .catch(reportGmailPageError)
+                      .finally(() => setPageLoading(false));
+                  }}
+                  disabled={rateLimitWait > 0}
+                >
+                  {rateLimitWait > 0 ? `Retry in ${rateLimitWait}s` : "Retry"}
+                </button>
+              </p>
+            )}
+            {gmailStatus.connected && (
+              <div className="email-pagination">
+                <label className="email-infinite-toggle">
+                  <input
+                    type="checkbox"
+                    checked={infiniteScroll}
+                    onChange={(event) => {
+                      setInfiniteScroll(event.target.checked);
+                      setPageIndex(0);
+                      setEmails([]);
+                      setSelectedEmailId(null);
+                      setPageError("");
+                    }}
+                  />
+                  <span>Load as you scroll</span>
+                </label>
+                <div className="email-pagination-controls">
+                  <span className="email-pagination-summary" role="status">
+                    {pageLoading
+                      ? `Loading page ${pageIndex + 1}…`
+                      : paginationSummary}
+                  </span>
+                  {!infiniteScroll && (
+                    <div className="email-pagination-buttons">
+                      <button
+                        aria-label="Previous email page"
+                        onClick={() => {
+                          setSelectedEmailId(null);
+                          setPageIndex((current) => Math.max(0, current - 1));
+                        }}
+                        disabled={pageIndex === 0 || pageLoading}
+                      >
+                        <ChevronLeft size={16} />
+                        Previous
+                      </button>
+                      <span>Page {pageIndex + 1}</span>
+                      <button
+                        aria-label="Next email page"
+                        onClick={() => {
+                          setSelectedEmailId(null);
+                          setPageIndex((current) => current + 1);
+                        }}
+                        disabled={
+                          !pageInfo.nextPageToken || pageLoading || Boolean(pageError)
+                        }
+                      >
+                        Next
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  )}
+                  {pageLoading && (
+                    <span
+                      className="email-pagination-progress"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           <aside className="email-action-center">

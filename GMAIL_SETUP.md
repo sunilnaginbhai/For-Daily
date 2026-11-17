@@ -62,6 +62,19 @@ control. The backend keeps OAuth tokens in server-side development sessions.
 After changing Gmail permissions, restart the backend, disconnect Gmail in the
 app, and connect again to grant the updated scope.
 
+## Gmail paging
+
+The connected inbox requests 25 messages at a time. The backend passes Gmail's
+`nextPageToken` through to the next request, loads message details only for that
+page, and returns the token for the following page. Previous pages are cached
+in the dashboard; the cache is bounded and filters start again at page one.
+Use **Load as you scroll** to opt into loading the next page when the list
+approaches the bottom. Inbox folders and user labels are loaded from Gmail, and
+search/date/priority filters are sent with the message-list request.
+
+The messages endpoint accepts page sizes from 20 to 30. Run the pagination
+validation tests with `npm run test --workspace backend`.
+
 This backend is for local development. It uses an in-memory session store and
 refuses to start with `NODE_ENV=production`; before deployment, configure a
 persistent, protected session store and HTTPS cookie settings.
